@@ -1,6 +1,8 @@
 <?php
+ini_set('session.gc_maxlifetime', '43200');
 session_start();
 require_once 'conexao.php';
+require_once __DIR__ . '/sessao_inativ.php'; // SESSAO_INATIV_V1
 require_once __DIR__ . '/hora_extra.php'; // HE_PATCH_V1
 if ($pdo) { try { heGarantirTabelas($pdo); } catch (Exception $e) {} }
 

@@ -1,7 +1,9 @@
 <?php
 ob_start();
+ini_set('session.gc_maxlifetime', '43200');
 session_start();
 require_once 'conexao.php';
+require_once __DIR__ . '/sessao_inativ.php'; // SESSAO_INATIV_V1
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'login') {
     $inputUser = trim($_POST['usuario']); $inputPass = trim($_POST['senha']);
@@ -3666,5 +3668,18 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
 })();
 </script>
 <script src="gestao.js?v=1794144405"></script>
+<script>/* SESSAO_INATIV_V1: volta ao login quando a tela fica parada; enquanto há uso, mantém a sessão viva */
+(function () {
+  var logado = <?php echo !empty($_SESSION['usuario']) ? 'true' : 'false'; ?>, lim = <?php echo (int)$sessaoLimMin; ?> * 60000;
+  if (!logado || !lim) return;
+  var ult = Date.now(), ping = Date.now();
+  ['click', 'keydown', 'mousemove', 'wheel', 'touchstart', 'scroll'].forEach(function (e) { document.addEventListener(e, function () { ult = Date.now(); }, { passive: true, capture: true }); });
+  setInterval(function () {
+    var agora = Date.now();
+    if (agora - ult > lim) { location.href = 'index.php?sair_inativo=1'; return; }
+    if (ult > ping && agora - ping > 240000) { ping = agora; fetch('api_escala.php?action=sessao_ping', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (!j.sucesso) location.href = 'index.php?sair_inativo=1'; }).catch(function () {}); }
+  }, 20000);
+})();
+</script>
 </body>
 </html>
