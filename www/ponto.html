@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ponto — Plantão Técnico</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
+<style>
+  body{background:#f1f5f9;-webkit-tap-highlight-color:transparent}
+  .hidden{display:none!important}
+  video,canvas{max-width:100%}
+  #video{transform:scaleX(-1)}
+  .btn{border-radius:.75rem;font-weight:800;padding:.8rem 1rem;transition:filter .15s}
+  .btn:disabled{opacity:.5}
+  .btn:active{filter:brightness(.92)}
+  input,select,textarea{width:100%;border:1px solid #cbd5e1;border-radius:.6rem;padding:.65rem .75rem;font-size:16px;background:#fff}
+</style>
+</head>
+<body class="min-h-screen text-slate-800">
+<div class="max-w-md mx-auto p-4 pb-16">
+
+  <header class="flex items-center justify-between py-2 mb-3">
+    <div class="font-black text-lg text-slate-800">⏱ Ponto <span class="text-blue-600">Plantão Técnico</span></div>
+    <button id="btn-sair" class="hidden text-xs font-bold text-slate-500 underline">Sair</button>
+  </header>
+
+  <div id="aviso" class="hidden mb-3 rounded-lg px-3 py-2 text-sm font-bold"></div>
+
+  <!-- LOGIN -->
+  <section id="tela-login" class="hidden bg-white rounded-2xl shadow p-5 space-y-3">
+    <h2 class="font-black text-slate-800">Entrar</h2>
+    <label class="block text-xs font-bold text-slate-500 uppercase">Seu nome
+      <input id="login-nome" list="lista-nomes" autocomplete="off" placeholder="Digite seu nome" class="mt-1"></label>
+    <datalist id="lista-nomes"></datalist>
+    <label class="block text-xs font-bold text-slate-500 uppercase">PIN
+      <input id="login-pin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" placeholder="PIN fornecido pelo gestor" class="mt-1"></label>
+    <button id="btn-entrar" class="btn w-full bg-blue-600 text-white">Entrar</button>
+    <p class="text-xs text-slate-400">Não tem PIN? Peça ao seu gestor.</p>
+  </section>
+
+  <!-- TROCAR PIN -->
+  <section id="tela-pin" class="hidden bg-white rounded-2xl shadow p-5 space-y-3">
+    <h2 class="font-black text-slate-800">Crie seu PIN pessoal</h2>
+    <p class="text-sm text-slate-500">O PIN recebido é provisório. Escolha um novo (4 a 8 dígitos).</p>
+    <input id="pin-atual" type="password" inputmode="numeric" maxlength="8" placeholder="PIN provisório atual">
+    <input id="pin-novo" type="password" inputmode="numeric" maxlength="8" placeholder="Novo PIN">
+    <input id="pin-novo2" type="password" inputmode="numeric" maxlength="8" placeholder="Repita o novo PIN">
+    <button id="btn-salvar-pin" class="btn w-full bg-blue-600 text-white">Salvar PIN</button>
+  </section>
+
+  <!-- CADASTRO FACIAL -->
+  <section id="tela-cadastro" class="hidden bg-white rounded-2xl shadow p-5 space-y-3">
+    <h2 class="font-black text-slate-800">Cadastro do rosto</h2>
+    <p class="text-sm text-slate-500">Vamos registrar seu rosto uma única vez para validar suas batidas de ponto.</p>
+    <label class="flex gap-2 items-start text-sm text-slate-600">
+      <input id="consentimento" type="checkbox" class="mt-1" style="width:auto">
+      <span>Autorizo o uso da minha imagem facial e da minha localização no momento da batida, exclusivamente para o controle de ponto (LGPD, art. 11). As imagens ficam armazenadas pela empresa e só gestores autorizados têm acesso.</span>
+    </label>
+    <button id="btn-iniciar-cadastro" class="btn w-full bg-blue-600 text-white">Abrir câmera e cadastrar</button>
+  </section>
+
+  <!-- HOME -->
+  <section id="tela-home" class="hidden space-y-3">
+    <div class="bg-white rounded-2xl shadow p-5">
+      <div class="text-xs font-bold text-slate-400 uppercase" id="home-data"></div>
+      <div class="text-lg font-black text-slate-800" id="home-nome"></div>
+      <div class="text-4xl font-black text-slate-900 tabular-nums my-1" id="relogio">--:--:--</div>
+      <div id="home-regra" class="text-xs text-slate-400"></div>
+      <button id="btn-bater" class="btn w-full bg-emerald-600 text-white text-lg mt-3">Bater ponto</button>
+      <div id="home-alerta-hoje" class="hidden mt-3 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 text-sm font-bold p-3"></div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow p-5">
+      <div class="text-xs font-black text-slate-500 uppercase mb-2">Batidas de hoje</div>
+      <div id="lista-hoje" class="divide-y"></div>
+    </div>
+
+    <div id="bloco-alertas" class="hidden bg-white rounded-2xl shadow p-5 border-l-4 border-red-500">
+      <div class="text-xs font-black text-red-600 uppercase mb-1">⚠ Corrija e justifique</div>
+      <p class="text-xs text-slate-500 mb-2">Estes dias estão com batidas faltando ou ímpares.</p>
+      <div id="lista-alertas" class="space-y-2"></div>
+    </div>
+
+    <button id="btn-historico" class="btn w-full bg-white text-slate-700 border">Ver meu histórico</button>
+  </section>
+</div>
+
+<!-- MODAL CÂMERA -->
+<div id="modal-cam" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-md p-4 space-y-3">
+    <div class="flex justify-between items-center"><div class="font-black" id="cam-titulo">Reconhecimento facial</div>
+      <button id="cam-fechar" class="text-2xl text-slate-400 leading-none">&times;</button></div>
+    <div class="relative bg-black rounded-xl overflow-hidden" style="aspect-ratio:3/4">
+      <video id="video" autoplay playsinline muted class="w-full h-full object-cover"></video>
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="border-4 border-white/60 rounded-full" style="width:62%;aspect-ratio:3/4"></div></div>
+    </div>
+    <div id="cam-status" class="text-sm font-bold text-center text-slate-600">Iniciando câmera…</div>
+    <div id="cam-gps" class="text-xs text-center text-slate-400"></div>
+    <button id="cam-confirmar" class="btn w-full bg-emerald-600 text-white" disabled>Registrar</button>
+  </div>
+</div>
+
+<!-- MODAL MANUAL -->
+<div id="modal-manual" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md p-5 space-y-3 max-h-[92vh] overflow-y-auto">
+    <div class="flex justify-between items-center"><div class="font-black">Lançar batida manual</div>
+      <button id="man-fechar" class="text-2xl text-slate-400 leading-none">&times;</button></div>
+    <div class="text-sm text-slate-500" id="man-dia"></div>
+    <label class="block text-xs font-bold text-slate-500 uppercase">Batida<select id="man-tipo" class="mt-1"></select></label>
+    <label class="block text-xs font-bold text-slate-500 uppercase">Horário<input id="man-hora" type="time" class="mt-1"></label>
+    <div id="man-sugestao" class="text-xs font-bold text-blue-700"></div>
+    <label class="block text-xs font-bold text-slate-500 uppercase">Justificativa (obrigatória)
+      <textarea id="man-just" rows="3" maxlength="500" placeholder="Explique por que não bateu o ponto" class="mt-1"></textarea></label>
+    <div id="man-erro" class="hidden text-sm font-bold text-red-600"></div>
+    <p class="text-xs text-slate-400">A batida manual fica pendente até o gestor aprovar.</p>
+    <button id="man-enviar" class="btn w-full bg-blue-600 text-white">Enviar para aprovação</button>
+  </div>
+</div>
+
+<!-- MODAL HISTÓRICO -->
+<div id="modal-hist" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md p-5 max-h-[92vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-2"><div class="font-black">Histórico (últimos 35 dias)</div>
+      <button id="hist-fechar" class="text-2xl text-slate-400 leading-none">&times;</button></div>
+    <div id="hist-corpo" class="space-y-2"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var MODELOS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
+  var DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  var TIPOS = ['ENTRADA', 'SAIDA_ALMOCO', 'RETORNO_ALMOCO', 'SAIDA'];
+  var ROTULOS = { ENTRADA: 'Início da atividade', SAIDA_ALMOCO: 'Saída para o almoço', RETORNO_ALMOCO: 'Retorno do almoço', SAIDA: 'Fim de expediente' };
+  var $ = function (id) { return document.getElementById(id); };
+  var estado = { me: null, stream: null, modo: null, modelosOk: false, gps: null, acao: null, timer: null, offsetMs: 0 };
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function hhmm(ts) { return ts ? ts.substring(11, 16) : ''; }
+  function dataBR(s) { var p = s.split('-'); return p[2] + '/' + p[1]; }
+  function fmtMin(m) { m = Math.abs(Math.round(m)); return Math.floor(m / 60) + 'h' + (m % 60 ? String(m % 60).padStart(2, '0') + 'm' : ''); }
+
+  async function api(action, body) {
+    var r = await fetch('api_ponto.php?action=' + action, body === undefined ? { credentials: 'same-origin' } :
+      { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var txt = await r.text(), j;
+    try { j = JSON.parse(txt); } catch (e) { throw new Error('Resposta inválida do servidor.'); }
+    if (r.status === 401) { mostrar('tela-login'); }
+    return j;
+  }
+  function aviso(msg, tipo) {
+    var a = $('aviso'); if (!msg) { a.classList.add('hidden'); return; }
+    a.className = 'mb-3 rounded-lg px-3 py-2 text-sm font-bold ' + (tipo === 'erro' ? 'bg-red-100 text-red-700' : tipo === 'ok' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700');
+    a.textContent = msg;
+    if (tipo !== 'erro') setTimeout(function () { if (a.textContent === msg) a.classList.add('hidden'); }, 6000);
+  }
+  function mostrar(tela) {
+    ['tela-login', 'tela-pin', 'tela-cadastro', 'tela-home'].forEach(function (t) { $(t).classList.toggle('hidden', t !== tela); });
+    $('btn-sair').classList.toggle('hidden', tela === 'tela-login');
+  }
+
+  /* ---------------- login / sessão ---------------- */
+  var tBusca = null;
+  $('login-nome').addEventListener('input', function () {
+    var q = this.value.trim(); clearTimeout(tBusca);
+    if (q.length < 3) { $('lista-nomes').innerHTML = ''; return; }
+    tBusca = setTimeout(async function () {
+      try { var j = await api('ponto_buscar_nome&q=' + encodeURIComponent(q)); $('lista-nomes').innerHTML = (j.nomes || []).map(function (n) { return '<option value="' + esc(n) + '">'; }).join(''); } catch (e) {}
+    }, 250);
+  });
+  $('btn-entrar').onclick = async function () {
+    var b = this; b.disabled = true; aviso('');
+    try {
+      var j = await api('ponto_login', { nome: $('login-nome').value.trim(), pin: $('login-pin').value });
+      if (!j.sucesso) return aviso(j.erro, 'erro');
+      $('pin-atual').value = j.pin_provisorio ? $('login-pin').value : '';
+      $('login-pin').value = '';
+      await carregar();
+    } catch (e) { aviso(e.message, 'erro'); } finally { b.disabled = false; }
+  };
+  $('login-pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('btn-entrar').click(); });
+  $('btn-sair').onclick = async function () { await api('ponto_logout', {}); estado.me = null; clearInterval(estado.timer); mostrar('tela-login'); };
+  $('btn-salvar-pin').onclick = async function () {
+    var a = $('pin-novo').value, b = $('pin-novo2').value;
+    if (a !== b) return aviso('Os PINs não conferem.', 'erro');
+    var j = await api('ponto_trocar_pin', { pin_atual: $('pin-atual').value, pin_novo: a });
+    if (!j.sucesso) return aviso(j.erro, 'erro');
+    ['pin-atual', 'pin-novo', 'pin-novo2'].forEach(function (i) { $(i).value = ''; });
+    aviso('PIN atualizado.', 'ok'); await carregar();
+  };
+
+  async function carregar() {
+    var j = await api('ponto_me');
+    if (!j.sucesso) { if (j.erro && !/Sessão/.test(j.erro)) aviso(j.erro, 'erro'); return mostrar('tela-login'); }
+    estado.me = j;
+    estado.offsetMs = new Date(j.agora.replace(' ', 'T')).getTime() - Date.now();
+    if (j.pin_provisorio) return mostrar('tela-pin');
+    if (!j.cadastrado) return mostrar('tela-cadastro');
+    renderHome(); mostrar('tela-home');
+  }
+
+  /* ---------------- home ---------------- */
+  function agoraServidor() { return new Date(Date.now() + estado.offsetMs); }
+  function tickRelogio() {
+    var d = agoraServidor();
+    $('relogio').textContent = [d.getHours(), d.getMinutes(), d.getSeconds()].map(function (n) { return String(n).padStart(2, '0'); }).join(':');
+  }
+  function renderHome() {
+    var j = estado.me, h = j.hoje;
+    var d = agoraServidor();
+    $('home-data').textContent = DIAS[h.dow] + ', ' + dataBR(h.data) + '/' + h.data.substring(0, 4);
+    $('home-nome').textContent = j.nome;
+    clearInterval(estado.timer); tickRelogio(); estado.timer = setInterval(tickRelogio, 1000);
+    $('home-regra').textContent = h.tem_regra ? (h.sem_obrigacao ? 'Hoje não há expediente obrigatório (feriado/ausência).' : 'Tolerância: ' + j.tolerancia + ' min') : 'Hoje não há expediente na regra de horário.';
+    var btn = $('btn-bater');
+    if (h.proximo) { btn.disabled = false; btn.textContent = '📷 Bater ponto — ' + ROTULOS[h.proximo]; }
+    else { btn.disabled = true; btn.textContent = '✔ Dia completo'; }
+    var ah = $('home-alerta-hoje');
+    if (h.alerta) { ah.classList.remove('hidden'); ah.innerHTML = esc(h.alerta) + ' <button class="underline ml-1" data-corrigir="' + h.data + '">Lançar manualmente</button>'; }
+    else ah.classList.add('hidden');
+
+    var linhas = TIPOS.map(function (t) {
+      var ativa = h.batidas.filter(function (b) { return b.tipo === t && b.status !== 'recusada'; })[0];
+      var rec = h.batidas.filter(function (b) { return b.tipo === t && b.status === 'recusada'; });
+      var info = ativa ? '<span class="font-black text-slate-800 tabular-nums">' + hhmm(ativa.momento) + '</span> ' + selo(ativa) : '<span class="text-slate-300 font-bold">—</span>';
+      var sug = !ativa && h.sugestoes[t] ? '' : '';
+      return '<div class="py-2 flex justify-between items-center text-sm"><span class="font-bold text-slate-600">' + ROTULOS[t] + '</span><span>' + info + sug + '</span></div>' +
+        rec.map(function (b) { return '<div class="text-xs text-red-600 pb-1">Recusada (' + hhmm(b.momento) + '): ' + esc(b.motivo_decisao || '') + '</div>'; }).join('');
+    }).join('');
+    if (h.trabalhado_min != null) linhas += '<div class="py-2 text-xs text-slate-500 font-bold">Trabalhado: ' + fmtMin(h.trabalhado_min) + (h.saldo_min ? ' · saldo ' + (h.saldo_min > 0 ? '+' : '−') + fmtMin(h.saldo_min) : '') + '</div>';
+    $('lista-hoje').innerHTML = linhas;
+
+    var al = j.alertas.filter(function (a) { return a.data !== h.data; });
+    $('bloco-alertas').classList.toggle('hidden', !al.length);
+    $('lista-alertas').innerHTML = al.map(function (a) {
+      return '<div class="border rounded-lg p-2 text-sm"><div class="font-black text-slate-700">' + DIAS[a.dow] + ', ' + dataBR(a.data) + '</div><div class="text-xs text-slate-500 mb-1">' + esc(a.alerta) + '</div>' +
+        '<button class="text-xs font-black text-blue-700 underline" data-corrigir="' + a.data + '">Corrigir e justificar</button></div>';
+    }).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-corrigir]'), function (b) {
+      b.onclick = function () { abrirManual(b.getAttribute('data-corrigir')); };
+    });
+  }
+  function selo(b) {
+    var o = b.origem === 'manual' ? 'manual' : 'facial', cor = 'bg-slate-100 text-slate-600';
+    if (b.status === 'pendente') cor = 'bg-amber-100 text-amber-700'; else if (b.status === 'aprovada') cor = 'bg-emerald-100 text-emerald-700';
+    return '<span class="text-[10px] font-black uppercase px-1.5 py-0.5 rounded ' + cor + '">' + o + (b.status === 'pendente' ? ' · pendente' : b.status === 'aprovada' ? ' · aprovada' : '') + '</span>';
+  }
+
+  /* ---------------- câmera + reconhecimento ---------------- */
+  async function carregarModelos() {
+    if (estado.modelosOk) return;
+    if (!window.faceapi) throw new Error('Não foi possível carregar o reconhecimento facial. Verifique a internet e recarregue a página.');
+    await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODELOS), faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODELOS), faceapi.nets.faceRecognitionNet.loadFromUri(MODELOS)]);
+    estado.modelosOk = true;
+  }
+  function pegarLocalizacao() {
+    return new Promise(function (resolve, reject) {
+      if (!navigator.geolocation) return reject(new Error('Este aparelho não oferece localização.'));
+      navigator.geolocation.getCurrentPosition(function (p) {
+        resolve({ lat: p.coords.latitude, lng: p.coords.longitude, precisao: p.coords.accuracy });
+      }, function (e) {
+        reject(new Error(e.code === 1 ? 'Localização bloqueada. Permita o acesso à localização nas configurações do navegador.' : 'Não foi possível obter a localização. Vá para um local aberto e tente de novo.'));
+      }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+    });
+  }
+  async function detectar() {
+    var det = await faceapi.detectAllFaces($('video'), new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 })).withFaceLandmarks(true).withFaceDescriptors();
+    return det;
+  }
+  function fotoDoVideo() {
+    var v = $('video'), c = document.createElement('canvas'), w = 320, h = Math.round(w * v.videoHeight / v.videoWidth);
+    c.width = w; c.height = h; c.getContext('2d').drawImage(v, 0, 0, w, h);
+    return c.toDataURL('image/jpeg', 0.7);
+  }
+  function setStatus(msg, cor) { var s = $('cam-status'); s.textContent = msg; s.className = 'text-sm font-bold text-center ' + (cor || 'text-slate-600'); }
+  function fecharCamera() {
+    if (estado.stream) { estado.stream.getTracks().forEach(function (t) { t.stop(); }); estado.stream = null; }
+    clearInterval(estado.loopCam); $('modal-cam').classList.add('hidden'); estado.modo = null;
+  }
+  $('cam-fechar').onclick = fecharCamera;
+
+  async function abrirCamera(modo) {
+    estado.modo = modo; estado.gps = null; estado.ultimo = null;
+    $('cam-titulo').textContent = modo === 'cadastro' ? 'Cadastro do rosto' : 'Bater ponto — ' + ROTULOS[estado.me.hoje.proximo];
+    $('cam-confirmar').disabled = true; $('cam-confirmar').textContent = modo === 'cadastro' ? 'Cadastrar meu rosto' : 'Registrar';
+    $('cam-gps').textContent = '📍 Obtendo localização…';
+    $('modal-cam').classList.remove('hidden'); setStatus('Iniciando câmera…');
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Câmera indisponível. Abra esta página em HTTPS no navegador do celular.');
+      estado.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+      $('video').srcObject = estado.stream; await $('video').play().catch(function () {});
+      setStatus('Carregando reconhecimento facial…');
+      await carregarModelos();
+      var gpsP = pegarLocalizacao().then(function (g) { estado.gps = g; $('cam-gps').textContent = '📍 Localização obtida (precisão ~' + Math.round(g.precisao) + ' m)'; })
+        .catch(function (e) { $('cam-gps').textContent = '⚠ ' + e.message; });
+      estado.loopCam = setInterval(async function () {
+        if (!estado.modo || estado.ocupado) return;
+        estado.ocupado = true;
+        try {
+          var d = await detectar();
+          if (d.length === 0) { estado.ultimo = null; setStatus('Procurando rosto… centralize o rosto no círculo.'); $('cam-confirmar').disabled = true; }
+          else if (d.length > 1) { estado.ultimo = null; setStatus('Mais de um rosto na imagem. Fique sozinho(a) na câmera.', 'text-red-600'); $('cam-confirmar').disabled = true; }
+          else if (!estado.gps) { estado.ultimo = d[0]; setStatus('Rosto detectado. Aguardando localização…'); $('cam-confirmar').disabled = true; }
+          else { estado.ultimo = d[0]; setStatus('✔ Rosto detectado. Pode registrar.', 'text-emerald-600'); $('cam-confirmar').disabled = false; }
+        } catch (e) { setStatus('Erro na leitura do rosto: ' + e.message, 'text-red-600'); }
+        estado.ocupado = false;
+      }, 600);
+      await gpsP;
+    } catch (e) { setStatus(e.message, 'text-red-600'); }
+  }
+
+  $('btn-iniciar-cadastro').onclick = function () {
+    if (!$('consentimento').checked) return aviso('Marque a autorização para continuar.', 'erro');
+    abrirCamera('cadastro');
+  };
+  $('btn-bater').onclick = function () { aviso(''); abrirCamera('bater'); };
+
+  $('cam-confirmar').onclick = async function () {
+    var b = this; b.disabled = true;
+    try {
+      if (estado.modo === 'cadastro') {
+        setStatus('Mantenha o rosto parado… capturando (0/3)');
+        var amostras = [];
+        for (var i = 0; i < 3; i++) {
+          await new Promise(function (r) { setTimeout(r, 700); });
+          var d = await detectar();
+          if (d.length !== 1) throw new Error('Rosto perdido durante a captura. Tente novamente.');
+          amostras.push(Array.from(d[0].descriptor)); setStatus('Capturando (' + (i + 1) + '/3)');
+        }
+        for (var x = 1; x < amostras.length; x++) { if (dist(amostras[0], amostras[x]) > 0.45) throw new Error('As leituras ficaram diferentes. Fique parado(a), com boa luz, e tente de novo.'); }
+        var media = amostras[0].map(function (_, k) { return (amostras[0][k] + amostras[1][k] + amostras[2][k]) / 3; });
+        var foto = fotoDoVideo();
+        var j = await api('ponto_cadastrar_rosto', { descritor: media, foto: foto, consentimento: true });
+        if (!j.sucesso) throw new Error(j.erro);
+        fecharCamera(); aviso('Rosto cadastrado! Agora você já pode bater o ponto.', 'ok'); await carregar();
+      } else {
+        if (!estado.ultimo || !estado.gps) throw new Error('Aguarde a detecção do rosto e da localização.');
+        setStatus('Enviando…');
+        var j2 = await api('ponto_bater', { descritor: Array.from(estado.ultimo.descriptor), foto: fotoDoVideo(), lat: estado.gps.lat, lng: estado.gps.lng, precisao: estado.gps.precisao });
+        if (!j2.sucesso) throw new Error(j2.erro);
+        fecharCamera(); aviso('✔ ' + j2.rotulo + ' registrado às ' + j2.hora.substring(0, 5) + '.', 'ok'); await carregar();
+      }
+    } catch (e) { setStatus(e.message, 'text-red-600'); b.disabled = false; }
+  };
+  function dist(a, b) { var s = 0; for (var i = 0; i < a.length; i++) { var d = a[i] - b[i]; s += d * d; } return Math.sqrt(s); }
+
+  /* ---------------- batida manual ---------------- */
+  var diaManual = null;
+  async function abrirManual(data) {
+    var s = (estado.me.hoje.data === data) ? estado.me.hoje : estado.me.alertas.filter(function (a) { return a.data === data; })[0];
+    if (!s) return;
+    diaManual = s;
+    $('man-dia').textContent = DIAS[s.dow] + ', ' + dataBR(s.data) + '/' + s.data.substring(0, 4);
+    $('man-tipo').innerHTML = s.faltam.length ? s.faltam.map(function (t) { return '<option value="' + t + '">' + ROTULOS[t] + '</option>'; }).join('') : '<option value="">Nenhuma batida faltando</option>';
+    $('man-just').value = ''; $('man-erro').classList.add('hidden');
+    atualizarSugestao();
+    $('modal-manual').classList.remove('hidden');
+  }
+  function atualizarSugestao() {
+    var t = $('man-tipo').value, sug = diaManual && diaManual.sugestoes[t];
+    $('man-hora').value = sug || '';
+    $('man-sugestao').textContent = sug ? 'Sugestão pela regra de horário: ' + sug + ' (você pode ajustar)' : '';
+  }
+  $('man-tipo').onchange = atualizarSugestao;
+  $('man-fechar').onclick = function () { $('modal-manual').classList.add('hidden'); };
+  $('man-enviar').onclick = async function () {
+    var b = this; b.disabled = true; var er = $('man-erro'); er.classList.add('hidden');
+    try {
+      var j = await api('ponto_manual', { data: diaManual.data, tipo: $('man-tipo').value, hora: $('man-hora').value, justificativa: $('man-just').value });
+      if (!j.sucesso) { er.textContent = j.erro; er.classList.remove('hidden'); return; }
+      $('modal-manual').classList.add('hidden'); aviso('Batida enviada para aprovação do gestor.', 'ok'); await carregar();
+    } catch (e) { er.textContent = e.message; er.classList.remove('hidden'); } finally { b.disabled = false; }
+  };
+
+  /* ---------------- histórico ---------------- */
+  $('btn-historico').onclick = async function () {
+    var j = await api('ponto_historico'); if (!j.sucesso) return aviso(j.erro, 'erro');
+    $('hist-corpo').innerHTML = j.dias.map(function (d) {
+      return '<div class="border rounded-lg p-2 text-sm"><div class="flex justify-between"><span class="font-black">' + DIAS[d.dow] + ', ' + dataBR(d.data) + '</span><span class="text-xs font-bold text-slate-500">' + (d.trabalhado_min != null ? fmtMin(d.trabalhado_min) : '') + '</span></div>' +
+        d.batidas.map(function (b) { return '<div class="flex justify-between text-xs py-0.5 ' + (b.status === 'recusada' ? 'line-through text-slate-400' : '') + '"><span>' + ROTULOS[b.tipo] + '</span><span class="tabular-nums font-bold">' + hhmm(b.momento) + ' ' + selo(b) + '</span></div>'; }).join('') +
+        (d.alerta ? '<div class="text-xs text-red-600 font-bold mt-1">' + esc(d.alerta) + '</div>' : '') + '</div>';
+    }).join('') || '<div class="text-sm text-slate-400">Sem registros.</div>';
+    $('modal-hist').classList.remove('hidden');
+  };
+  $('hist-fechar').onclick = function () { $('modal-hist').classList.add('hidden'); };
+
+  carregar().catch(function () { mostrar('tela-login'); });
+})();
+</script>
+</body>
+</html>

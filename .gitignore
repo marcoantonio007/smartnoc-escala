@@ -1,0 +1,6 @@
+*.bak*
+*.log
+*.tmp
+.env
+www/uploads/
+www/conexao.php
