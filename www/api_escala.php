@@ -622,7 +622,7 @@ if ($action === 'importar_funcionarios' && $_SERVER['REQUEST_METHOD'] === 'POST'
 
 if ($action === 'get_funcionarios') {
     try {
-        try { $pdo->exec("ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS data_admissao DATE"); } catch (Exception $e) {}
+        try { $pdo->exec("ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS data_admissao DATE, ADD COLUMN IF NOT EXISTS cpf VARCHAR(11)"); } catch (Exception $e) {}
         $stmt = $pdo->query("SELECT f.*, COALESCE((SELECT json_agg(grupo_id) FROM funcionario_whatsapp WHERE funcionario_id = f.id), '[]') as grupos_wpp FROM funcionarios f ORDER BY f.local_base ASC, f.localidade ASC, f.setor ASC, f.nome ASC");
         echo json_encode(['sucesso' => true, 'dados' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
     } catch (Exception $e) { echo json_encode(['sucesso' => false, 'erro' => $e->getMessage()]); }
@@ -633,15 +633,21 @@ if ($action === 'salvar_funcionario' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = $_POST['id'] ?? '';
     $nome = $_POST['nome'] ?? '';
     $adm = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($_POST['data_admissao'] ?? '')) ? $_POST['data_admissao'] : '';
+    $cpf = preg_replace('/\D/', '', (string)($_POST['cpf'] ?? '')); // CPF: usado nos arquivos fiscais do ponto (Portaria 671)
+    if ($cpf !== '') {
+        $okCpf = strlen($cpf) === 11 && !preg_match('/^(\d)\1{10}$/', $cpf);
+        for ($t = 9; $okCpf && $t < 11; $t++) { $s = 0; for ($i = 0; $i < $t; $i++) $s += (int)$cpf[$i] * (($t + 1) - $i); if ((int)$cpf[$t] !== ((10 * $s) % 11) % 10) $okCpf = false; }
+        if (!$okCpf) { echo json_encode(['sucesso' => false, 'erro' => 'CPF inválido.']); exit; }
+    }
     try {
-        $pdo->exec("ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS data_admissao DATE");
+        $pdo->exec("ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS data_admissao DATE, ADD COLUMN IF NOT EXISTS cpf VARCHAR(11)");
         if (!empty($id)) {
-            $stmt = $pdo->prepare("UPDATE funcionarios SET nome = :n, nome_completo = :nc, local_base = :b, localidade = :l, setor = :s, sigla = :sg, supervisor = :sup, telefone = :t, aniversario = :an, data_admissao = NULLIF(:ad, '')::date WHERE id = :id");
-            $stmt->execute(['n' => $nome, 'nc' => $_POST['nome_completo'] ?? '', 'b' => $_POST['local_base'] ?? '', 'l' => $_POST['localidade'] ?? '', 's' => $_POST['setor'] ?? '', 'sg' => $_POST['sigla'] ?? '', 'sup' => $_POST['supervisor'] ?? '', 't' => $_POST['telefone'] ?? '', 'an' => $_POST['aniversario'] ?? '', 'ad' => $adm, 'id' => $id]);
+            $stmt = $pdo->prepare("UPDATE funcionarios SET nome = :n, nome_completo = :nc, local_base = :b, localidade = :l, setor = :s, sigla = :sg, supervisor = :sup, telefone = :t, aniversario = :an, data_admissao = NULLIF(:ad, '')::date, cpf = NULLIF(:cpf, '') WHERE id = :id");
+            $stmt->execute(['n' => $nome, 'nc' => $_POST['nome_completo'] ?? '', 'b' => $_POST['local_base'] ?? '', 'l' => $_POST['localidade'] ?? '', 's' => $_POST['setor'] ?? '', 'sg' => $_POST['sigla'] ?? '', 'sup' => $_POST['supervisor'] ?? '', 't' => $_POST['telefone'] ?? '', 'an' => $_POST['aniversario'] ?? '', 'ad' => $adm, 'cpf' => $cpf, 'id' => $id]);
             registrarAuditoria($pdo, $usuarioLogado, 'ATUALIZAR COLABORADOR', "Atualizou colaborador: $nome");
         } else {
-            $stmt = $pdo->prepare("INSERT INTO funcionarios (nome, nome_completo, local_base, localidade, setor, sigla, supervisor, telefone, aniversario, data_admissao) VALUES (:n, :nc, :b, :l, :s, :sg, :sup, :t, :an, NULLIF(:ad, '')::date)");
-            $stmt->execute(['n' => $nome, 'nc' => $_POST['nome_completo'] ?? '', 'b' => $_POST['local_base'] ?? '', 'l' => $_POST['localidade'] ?? '', 's' => $_POST['setor'] ?? '', 'sg' => $_POST['sigla'] ?? '', 'sup' => $_POST['supervisor'] ?? '', 't' => $_POST['telefone'] ?? '', 'an' => $_POST['aniversario'] ?? '', 'ad' => $adm]);
+            $stmt = $pdo->prepare("INSERT INTO funcionarios (nome, nome_completo, local_base, localidade, setor, sigla, supervisor, telefone, aniversario, data_admissao, cpf) VALUES (:n, :nc, :b, :l, :s, :sg, :sup, :t, :an, NULLIF(:ad, '')::date, NULLIF(:cpf, ''))");
+            $stmt->execute(['n' => $nome, 'nc' => $_POST['nome_completo'] ?? '', 'b' => $_POST['local_base'] ?? '', 'l' => $_POST['localidade'] ?? '', 's' => $_POST['setor'] ?? '', 'sg' => $_POST['sigla'] ?? '', 'sup' => $_POST['supervisor'] ?? '', 't' => $_POST['telefone'] ?? '', 'an' => $_POST['aniversario'] ?? '', 'ad' => $adm, 'cpf' => $cpf]);
             registrarAuditoria($pdo, $usuarioLogado, 'CRIAR COLABORADOR', "Cadastrou novo colaborador: $nome");
         }
                 // --- INÍCIO SALVAR VÍNCULOS WHATSAPP ---
