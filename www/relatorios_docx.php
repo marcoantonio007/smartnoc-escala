@@ -121,8 +121,7 @@ function relDocxVr($pdo, $comp, $filtro = []) {
     for ($i = 0; $i < 3; $i++) $linhas[] = [['', '', '', ''], false];
     $corpo = dxP(dxR('AUTORIZAÇÃO', true, 14), 'c', 0, 200) . dxP(dxR('VALE REFEIÇÃO – EXTRA', true, 14), 'c', 0, 360) .
         dxCaixa(9570, [['EMPRESA:', $cfg['empresa']], ['CENTRO DE CUSTO:', $cfg['centro_custo']], ['RESPONSÁVEL:', $cfg['responsavel']], ['OBJETIVO:', $cfg['objetivo_vr'] ?? 'Horas Extras Realizadas']], 12) .
-        dxP([dxR('Solicito a compra de ', false, 11), dxR('VALE REFEIÇÃO', true, 11), dxR(' para trabalho conforme programação abaixo:', false, 11)], 'l', 360, 60) .
-        dxP(dxR('Competência: ' . $comp['mes'] . '/' . $comp['ano'] . ' (' . date('d/m', strtotime($comp['ini'])) . ' a ' . date('d/m', strtotime($comp['fim'])) . ')', false, 9), 'l', 0, 240) .
+        dxP([dxR('Solicito a compra de ', false, 11), dxR('VALE REFEIÇÃO', true, 11), dxR(' para trabalho conforme programação abaixo:', false, 11)], 'l', 360, 240) . // VR_SEM_COMPETENCIA_V1
         dxTab([1129, 4536, 2229, 928], $linhas, 9, ['c', 'c', 'c', 'c']) . dxRodape(8669, 11);
     return ['bin' => dxDocx($pdo, $corpo, 'Times New Roman', 12, 'Formulário VR Extra ' . $comp['mes'] . '/' . $comp['ano']),
             'arquivo' => 'Formulario_VR_Extra_' . $comp['mes'] . '_' . $comp['ano'] . '.docx', 'linhas' => $n, 'total' => $total];

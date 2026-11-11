@@ -294,8 +294,7 @@ function relPdfVr($pdo, $comp, $filtro = []) {
     $x2 = 20 + RelPdf::larg('Solicito a compra de ', 9.5) * 25.4 / 72;
     $pdf->texto($x2, $y, 'VALE REFEIÇÃO', 9.5, true);
     $pdf->texto($x2 + RelPdf::larg('VALE REFEIÇÃO ', 9.5, true) * 25.4 / 72, $y, 'para trabalho conforme programação abaixo:', 9.5);
-    $pdf->texto(20, $y + 6, 'Competência: ' . $comp['mes'] . '/' . $comp['ano'] . ' (' . date('d/m', strtotime($comp['ini'])) . ' a ' . date('d/m', strtotime($comp['fim'])) . ')', 8.5);
-    $y += 12;
+    $y += 8; // VR_SEM_COMPETENCIA_V1
     relTabela($pdf, 20, $y, [[26, 'Matr.', 'c'], [76, 'Nome Completo', 'c'], [50, 'Dia', 'c'], [18, 'Qtde', 'c']], $linhas, true, 8);
     $y += 14;
     relRodapeAssinatura($pdf, $y, 20);
