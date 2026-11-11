@@ -100,7 +100,11 @@
                 }
             } 
             
-            diasInfo.push({ dia: dDia, mes: dMes, ano: dAno, isWeekend, isHoliday, holidayData, isHoje, dataStr, dayOfWeek: currentDayOfWeek });
+            // FER_MUNICIPAL_V1: só feriado nacional/estadual (e os móveis) pinta a coluna; o municipal mantém a bolinha e pinta só o sobreaviso de quem é da cidade
+            let ferDia = (typeof listaFeriadosCache !== 'undefined' && listaFeriadosCache) ? listaFeriadosCache.filter(f => f.data_feriado && f.data_feriado.substring(5, 10) === dataStrMMDD) : [];
+            let isHolidayGeral = !!fMovel || ferDia.some(f => f.tipo !== 'municipal');
+            let munCidades = ferDia.filter(f => f.tipo === 'municipal').map(f => String(f.localidade || '').trim().toUpperCase());
+            diasInfo.push({ dia: dDia, mes: dMes, ano: dAno, isWeekend, isHoliday, isHolidayGeral, munCidades, holidayData, isHoje, dataStr, dayOfWeek: currentDayOfWeek });
             curDate.setDate(curDate.getDate() + 1);
         }
 
@@ -112,7 +116,7 @@
             let topClasses = "p-1 text-center font-bold text-[8px] sm:text-[9px] ";
             let botClasses = "p-1 text-center font-black text-[10px] sm:text-[11px] relative ";
             if (d.isHoje) { topClasses += "bg-green-700 text-white border-l border-green-800"; botClasses += "hoje-col-header"; } 
-            else if (d.isWeekend || d.isHoliday) { topClasses += "bg-indigo-700 text-white border-l border-indigo-600/50"; botClasses += "bg-indigo-700 text-white border-l border-indigo-600/50 shadow-sm"; } 
+            else if (d.isWeekend || d.isHolidayGeral) { topClasses += "bg-indigo-700 text-white border-l border-indigo-600/50"; botClasses += "bg-indigo-700 text-white border-l border-indigo-600/50 shadow-sm"; } 
             else { topClasses += "bg-slate-100 text-slate-700 border-l border-slate-200"; botClasses += "bg-white text-slate-800 border-l border-slate-200"; }
 
             topRow += `<th class="${topClasses}" style="width: ${colWidthPercent}%;">${['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'][d.dayOfWeek]}</th>`;
@@ -162,7 +166,7 @@
                     let statusEscala = (typeof cellData === 'object' && cellData !== null) ? cellData.status : cellData;
                     let anexoData = (typeof cellData === 'object' && cellData !== null) ? cellData.anexo : null;
 
-                    let visualData = getStatusVisuals(statusEscala, d.isWeekend || d.isHoliday); 
+                    let visualData = getStatusVisuals(statusEscala, d.isWeekend || d.isHolidayGeral || d.munCidades.includes(String(funcData.localidade || '').trim().toUpperCase())); 
                     let hasAnexoMarker = anexoData ? `<div class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></div>` : '';
                     if (typeof marcadorHoraExtra === 'function') hasAnexoMarker += marcadorHoraExtra(nome, d.dataStr); // HE_PATCH_V1 DASH_PATCH_V1
                     const sobrepos = (typeof listarSobreposicoesPlantao === 'function') ? listarSobreposicoesPlantao(nome, d.dataStr) : null;
