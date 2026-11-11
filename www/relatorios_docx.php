@@ -107,7 +107,7 @@ function relDocxHoras($pdo, $comp, $filtro = []) {
     foreach (relDados($pdo, $comp['ini'], $comp['fim'], $filtro) as $r) if ($r['dias'] > 0) { $linhas[] = [[$r['matricula'], $r['nc'], (string)$r['dias'], relFmtHoras($r['horas'])], true]; $n++; }
     if (!$n) $linhas[] = [['', 'Nenhum sobreaviso na competência.', '', ''], false];
     $corpo = dxP(dxR('SOLICITAÇÃO', true, 14), 'c', 0, 240) .
-        dxCaixa(10318, [['CENTRO DE CUSTO:', $cfg['cc_horas'] ?? $cfg['centro_custo'], true], ['RESPONSÁVEL:', $cfg['responsavel'], true], ['COMPETÊNCIA:', $comp['mes'] . '/' . $comp['ano'], true]], 10) .
+        dxCaixa(10318, [['CENTRO DE CUSTO:', $cfg['cc_horas'] ?? $cfg['centro_custo'], true], ['RESPONSÁVEL:', $cfg['resp_horas'] ?? $cfg['responsavel'], true], ['COMPETÊNCIA:', $comp['mes'] . '/' . $comp['ano'], true]], 10) .
         dxP(dxR('Solicitação de: SOBREAVISO', true, 10), 'l', 200, 120) .
         dxTab([1417, 4252, 2268, 2381], $linhas, 9, ['c', 'l', 'c', 'c']) . dxRodape(10318, 9);
     return ['bin' => dxDocx($pdo, $corpo, 'Arial', 10, 'Relatório de Sobreaviso ' . $comp['mes'] . '/' . $comp['ano']),
@@ -118,10 +118,9 @@ function relDocxVr($pdo, $comp, $filtro = []) {
     foreach (relDados($pdo, $comp['ini'], $comp['fim'], $filtro) as $r) if ($r['tickets']) {
         $linhas[] = [[$r['matricula'], mb_strtoupper($r['nc'], 'UTF-8'), implode(', ', $r['tickets']), (string)count($r['tickets'])], false]; $total += count($r['tickets']); $n++;
     }
-    $linhas[] = [['', 'TOTAL', '', (string)$total], true];
     for ($i = 0; $i < 3; $i++) $linhas[] = [['', '', '', ''], false];
     $corpo = dxP(dxR('AUTORIZAÇÃO', true, 14), 'c', 0, 200) . dxP(dxR('VALE REFEIÇÃO – EXTRA', true, 14), 'c', 0, 360) .
-        dxCaixa(9570, [['EMPRESA:', $cfg['empresa']], ['CENTRO DE CUSTO:', $cfg['centro_custo']], ['RESPONSÁVEL:', $cfg['responsavel']], ['OBJETIVO:', 'Horas Extras Realizadas']], 12) .
+        dxCaixa(9570, [['EMPRESA:', $cfg['empresa']], ['CENTRO DE CUSTO:', $cfg['centro_custo']], ['RESPONSÁVEL:', $cfg['responsavel']], ['OBJETIVO:', $cfg['objetivo_vr'] ?? 'Horas Extras Realizadas']], 12) .
         dxP([dxR('Solicito a compra de ', false, 11), dxR('VALE REFEIÇÃO', true, 11), dxR(' para trabalho conforme programação abaixo:', false, 11)], 'l', 360, 60) .
         dxP(dxR('Competência: ' . $comp['mes'] . '/' . $comp['ano'] . ' (' . date('d/m', strtotime($comp['ini'])) . ' a ' . date('d/m', strtotime($comp['fim'])) . ')', false, 9), 'l', 0, 240) .
         dxTab([1129, 4536, 2229, 928], $linhas, 9, ['c', 'c', 'c', 'c']) . dxRodape(8669, 11);

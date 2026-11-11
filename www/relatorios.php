@@ -16,9 +16,9 @@ function relGarantir($pdo) {
         ultimo_ref VARCHAR(7), ultimo_em TIMESTAMP, ultimo_status TEXT, criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
 }
 function relCfg($pdo) {
-    $c = ['empresa' => 'AVANTIA TECNOLOGIA E ENGENHARIA S/A – CNPJ 02.543.302/0001-31', 'centro_custo' => '210300406 - OI BA - POLICIA', 'cc_horas' => '210300406', 'responsavel' => ''];
+    $c = ['empresa' => 'AVANTIA TECNOLOGIA E ENGENHARIA S/A – CNPJ 02.543.302/0001-31', 'centro_custo' => '210300406 - OI BA - POLICIA', 'cc_horas' => '210300406', 'responsavel' => '', 'resp_horas' => '', 'objetivo_vr' => 'Horas Extras Realizadas']; // RELATORIOS_CAB_V1
     try { $q = $pdo->prepare("SELECT valor FROM configuracoes WHERE chave = 'relatorios_cfg'"); $q->execute(); $v = json_decode((string)$q->fetchColumn(), true);
-          if (is_array($v)) foreach ($c as $k => $x) if (isset($v[$k])) $c[$k] = (string)$v[$k]; } catch (Exception $e) {}
+          if (is_array($v)) { foreach ($c as $k => $x) if (isset($v[$k])) $c[$k] = (string)$v[$k]; if (!isset($v['resp_horas'])) $c['resp_horas'] = $c['responsavel']; } } catch (Exception $e) {}
     return $c;
 }
 function relCfgSalvar($pdo, $in) {
@@ -259,7 +259,7 @@ function relPdfHoras($pdo, $comp, $filtro = []) {
     $pdf->texto(105, 15, 'SOLICITAÇÃO', 14, true, 'c');
     $pdf->retang(14, 25, 182, 20, 0.3); $pdf->linha(14, 31.6, 196, 31.6, 0.3); $pdf->linha(14, 38.3, 196, 38.3, 0.3);
     $pdf->texto(16, 30, 'CENTRO DE CUSTO: ' . $cfg['cc_horas'], 10, true);
-    $pdf->texto(16, 37, 'RESPONSÁVEL: ' . $cfg['responsavel'], 10, true);
+    $pdf->texto(16, 37, 'RESPONSÁVEL: ' . $cfg['resp_horas'], 10, true);
     $pdf->texto(16, 43, 'COMPETÊNCIA: ' . $comp['mes'] . '/' . $comp['ano'], 10, true);
     $pdf->texto(20, 52, 'Solicitação de: SOBREAVISO', 10, true);
     $y = 55;
@@ -276,14 +276,14 @@ function relPdfVr($pdo, $comp, $filtro = []) {
         $linhas[] = [[$r['matricula'], mb_strtoupper($r['nc'], 'UTF-8'), implode(', ', $r['tickets']), (string)count($r['tickets'])], false];
         $total += count($r['tickets']);
     }
-    $linhas[] = [['', 'TOTAL', '', (string)$total], true];
+    if (!$linhas) $linhas[] = [['', 'Nenhum vale extra na competência.', '', ''], false];
     $pdf = new RelPdf(); $pdf->titulo = 'Formulário VR Extra ' . $comp['mes'] . '/' . $comp['ano'];
     relCabecalho($pdf, $pdo);
     $pdf->texto(105, 17, 'AUTORIZAÇÃO', 13, true, 'c');
     $pdf->texto(105, 26, 'VALE REFEIÇÃO – EXTRA', 13, true, 'c');
     $y = 34;
     $pdf->retang(14, $y, 182, 28, 0.3);
-    $campos = [['EMPRESA:', $cfg['empresa']], ['CENTRO DE CUSTO:', $cfg['centro_custo']], ['RESPONSÁVEL:', $cfg['responsavel']], ['OBJETIVO:', 'Horas Extras Realizadas']];
+    $campos = [['EMPRESA:', $cfg['empresa']], ['CENTRO DE CUSTO:', $cfg['centro_custo']], ['RESPONSÁVEL:', $cfg['responsavel']], ['OBJETIVO:', $cfg['objetivo_vr'] ?? 'Horas Extras Realizadas']];
     foreach ($campos as $i => $c) {
         if ($i) $pdf->linha(14, $y + $i * 7, 196, $y + $i * 7, 0.3);
         $pdf->texto(16, $y + $i * 7 + 4.9, $c[0], 9.5, true);
@@ -299,7 +299,7 @@ function relPdfVr($pdo, $comp, $filtro = []) {
     relTabela($pdf, 20, $y, [[26, 'Matr.', 'c'], [76, 'Nome Completo', 'c'], [50, 'Dia', 'c'], [18, 'Qtde', 'c']], $linhas, true, 8);
     $y += 14;
     relRodapeAssinatura($pdf, $y, 20);
-    return ['bin' => $pdf->saida(), 'arquivo' => 'Formulario_VR_Extra_' . $comp['mes'] . '_' . $comp['ano'] . '.pdf', 'linhas' => count($linhas) - 1, 'total' => $total];
+    return ['bin' => $pdf->saida(), 'arquivo' => 'Formulario_VR_Extra_' . $comp['mes'] . '_' . $comp['ano'] . '.pdf', 'linhas' => $total ? count($linhas) : 0, 'total' => $total];
 }
 function relGerar($pdo, $tipo, $comp, $filtro = []) { return $tipo === 'vr' ? relPdfVr($pdo, $comp, $filtro) : relPdfHoras($pdo, $comp, $filtro); }
 

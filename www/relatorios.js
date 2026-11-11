@@ -56,7 +56,6 @@
     m.onclick = function (e) {
       var b = e.target.closest('[data-f]'); if (!b) return; m.remove();
       var f = b.getAttribute('data-f');
-      if (tipo === 'horas' && f === 'pdf' && typeof gerarRelatorioPDF === 'function') return gerarRelatorioPDF();
       root.baixarRelatorioServidor(tipo, btn, f);
     };
     setTimeout(function () {
@@ -79,13 +78,17 @@
     card.innerHTML = '<h3 class="text-sm font-bold text-slate-700 mb-1 border-b pb-1">📊 Relatórios por e-mail</h3>' +
       '<p class="text-[11px] text-slate-500 mb-3">O sistema envia o PDF da <b>última competência fechada</b> (15 a 14) no dia e hora escolhidos. Ex.: dia 15 às 08:00 envia a competência que terminou no dia 14.</p>' +
       '<div id="rel-aviso"></div>' +
-      '<div class="bg-white border rounded p-3 mb-3"><div class="text-[11px] font-black text-slate-700 uppercase mb-2">Dados que saem nos relatórios</div>' +
-      '<div class="grid grid-cols-1 md:grid-cols-3 gap-2">' +
-      '<div class="md:col-span-3"><label class="' + L + '">Empresa</label><input id="rel-empresa" class="' + I + '"></div>' +
-      '<div><label class="' + L + '">Centro de custo (VR Extra)</label><input id="rel-cc" class="' + I + '" placeholder="210300406 - OI BA - POLICIA"></div>' +
-      '<div><label class="' + L + '">Centro de custo (Relatório de Horas)</label><input id="rel-cch" class="' + I + '" placeholder="210300406"></div>' +
-      '<div><label class="' + L + '">Responsável</label><input id="rel-resp" class="' + I + '"></div></div>' +
-      '<button type="button" id="rel-cfg-salvar" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-bold text-xs">Salvar dados</button></div>' +
+      '<div class="bg-white border rounded p-3 mb-3"><div class="text-[11px] font-black text-slate-700 uppercase mb-2">Cabeçalho do Relatório de Horas (sobreaviso)</div>' +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-2">' +
+      '<div><label class="' + L + '">Centro de custo</label><input id="rel-cch" class="' + I + '" placeholder="210300406"></div>' +
+      '<div><label class="' + L + '">Responsável</label><input id="rel-resph" class="' + I + '"></div></div></div>' +
+      '<div class="bg-white border rounded p-3 mb-3"><div class="text-[11px] font-black text-slate-700 uppercase mb-2">Cabeçalho do Formulário VR Extra (ticket extra)</div>' +
+      '<div class="grid grid-cols-1 md:grid-cols-2 gap-2">' +
+      '<div class="md:col-span-2"><label class="' + L + '">Empresa</label><input id="rel-empresa" class="' + I + '"></div>' +
+      '<div><label class="' + L + '">Centro de custo</label><input id="rel-cc" class="' + I + '" placeholder="210300406 - OI BA - POLICIA"></div>' +
+      '<div><label class="' + L + '">Responsável</label><input id="rel-resp" class="' + I + '"></div>' +
+      '<div class="md:col-span-2"><label class="' + L + '">Objetivo</label><input id="rel-obj" class="' + I + '" placeholder="Horas Extras Realizadas"></div></div></div>' +
+      '<button type="button" id="rel-cfg-salvar" class="mb-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-bold text-xs">Salvar cabeçalhos</button>' +
       '<div class="flex items-center justify-between mb-1"><div class="text-[11px] font-black text-slate-700 uppercase">Envios automáticos</div>' +
       '<button type="button" id="rel-novo" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded font-bold text-xs">+ Novo envio</button></div>' +
       '<div id="rel-form" class="hidden bg-white border rounded p-3 mb-2"></div>' +
@@ -100,7 +103,7 @@
     var j; try { j = await post('rel_listar', {}); } catch (e) { return; }
     if (!j.sucesso) { card.remove(); return; } // só gestores
     estado.envios = j.envios || []; estado.setores = j.setores || [];
-    el('rel-empresa').value = j.cfg.empresa || ''; el('rel-cc').value = j.cfg.centro_custo || ''; el('rel-cch').value = j.cfg.cc_horas || ''; el('rel-resp').value = j.cfg.responsavel || '';
+    el('rel-empresa').value = j.cfg.empresa || ''; el('rel-cc').value = j.cfg.centro_custo || ''; el('rel-cch').value = j.cfg.cc_horas || ''; el('rel-resph').value = j.cfg.resp_horas || ''; el('rel-obj').value = j.cfg.objetivo_vr || ''; el('rel-resp').value = j.cfg.responsavel || '';
     el('rel-aviso').innerHTML = j.smtp ? '' : '<div class="mb-3 p-2 rounded bg-amber-50 border border-amber-300 text-[11px] font-bold text-amber-800">O e-mail (SMTP) ainda não está configurado. Configure na aba ✉️ E-mail para os envios funcionarem.</div>';
     renderLista();
   }
@@ -163,8 +166,8 @@
     };
   }
   async function salvarCfg() {
-    var j = await post('rel_cfg', { empresa: el('rel-empresa').value, centro_custo: el('rel-cc').value, cc_horas: el('rel-cch').value, responsavel: el('rel-resp').value });
-    toast(j.sucesso ? 'Dados dos relatórios salvos.' : j.erro, j.sucesso ? 'success' : 'error');
+    var j = await post('rel_cfg', { empresa: el('rel-empresa').value, centro_custo: el('rel-cc').value, cc_horas: el('rel-cch').value, resp_horas: el('rel-resph').value, objetivo_vr: el('rel-obj').value, responsavel: el('rel-resp').value });
+    toast(j.sucesso ? 'Cabeçalhos dos relatórios salvos.' : j.erro, j.sucesso ? 'success' : 'error');
   }
   if (typeof root.abrirConfiguracoes === 'function') {
     var orig = root.abrirConfiguracoes;
