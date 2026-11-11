@@ -475,6 +475,7 @@ if ($action === 'salvar_regras_sobreaviso' && $_SERVER['REQUEST_METHOD'] === 'PO
     } catch (Exception $e) { echo json_encode(['sucesso' => false, 'erro' => $e->getMessage()]); }
     exit;
 }
+if (strpos($action, 'rel_') === 0) { require_once __DIR__ . '/relatorios.php'; relRotear($pdo, $action, $usuarioLogado ?? ($_SESSION['usuario'] ?? '')); exit; } // RELATORIOS_V1
 if ($action === 'get_smtp' || $action === 'set_smtp' || $action === 'testar_smtp') {
     heExigeGestor();
     require_once __DIR__ . '/smtp_mail.php';

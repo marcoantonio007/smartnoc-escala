@@ -885,6 +885,7 @@
     { id: 'sobreaviso', rot: 'Sobreaviso', ic: '⏰' },
     { id: 'geral', rot: 'Geral', ic: '⚙️' },
     { id: 'email', rot: 'E-mail', ic: '✉️' },
+    { id: 'relatorios', rot: 'Relatórios', ic: '📊' },
     { id: 'feriados', rot: 'Feriados', ic: '📅' },
     { id: 'acessos', rot: 'Acessos', ic: '🔑' },
     { id: 'colab', rot: 'Colaboradores', ic: '👥' },

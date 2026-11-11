@@ -841,6 +841,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
                     <input type="file" id="file-import-escala" class="hidden" accept=".csv, .xlsx" onchange="importarCSV(event)">
                     <button onclick="exportarCSV()" class="p-1.5 bg-blue-800 hover:bg-blue-700 text-white rounded transition-colors shadow-sm" title="Exportar Escala Mês (CSV)"><i data-lucide="download" class="w-4 h-4"></i></button>
                     <button onclick="gerarRelatorioPDF()" class="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors shadow-sm" title="Relatório de Horas (PDF)"><i data-lucide="file-bar-chart" class="w-4 h-4"></i></button>
+                    <button onclick="baixarVRExtra(this)" class="p-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded transition-colors shadow-sm" title="Formulário VR Extra (PDF)"><i data-lucide="ticket" class="w-4 h-4"></i></button>
                     <button id="btn-gestao" onclick="switchView('gestao')" class="p-1.5 bg-amber-500 hover:bg-amber-400 text-white rounded transition-colors shadow-sm" title="Dashboard Gerencial (sobreaviso, hora extra e tickets)"><i data-lucide="layout-dashboard" class="w-4 h-4"></i></button>
                     <button onclick="abrirAuditoria()" class="p-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded transition-colors shadow-sm" title="Trilha de Auditoria"><i data-lucide="shield-alert" class="w-4 h-4"></i></button>
                 </div>
@@ -3667,7 +3668,8 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
     atualizarBotaoMes();
 })();
 </script>
-<script src="gestao.js?v=1794144405"></script>
+<script src="gestao.js?v=rel2"></script>
+<script src="relatorios.js?v=2"></script>
 <script>/* SESSAO_INATIV_V1: volta ao login quando a tela fica parada; enquanto há uso, mantém a sessão viva */
 (function () {
   var logado = <?php echo !empty($_SESSION['usuario']) ? 'true' : 'false'; ?>, lim = <?php echo (int)$sessaoLimMin; ?> * 60000;
