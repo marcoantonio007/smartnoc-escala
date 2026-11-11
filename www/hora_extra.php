@@ -203,8 +203,63 @@ function heRemover($pdo, $id) {
 
 // ---------- períodos de sobreaviso ----------
 
+// FER_MUNICIPAL_V2: feriado municipal vale só para quem tem a Localidade igual à cidade do feriado,
+// e nesse dia o sobreaviso segue os mesmos horários (períodos) do fim de semana.
+function escCidadeNorm($s) {
+    $s = trim(function_exists('mb_strtoupper') ? mb_strtoupper((string)$s, 'UTF-8') : strtoupper((string)$s));
+    $s = strtr($s, ['Á' => 'A', 'À' => 'A', 'Â' => 'A', 'Ã' => 'A', 'É' => 'E', 'Ê' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ô' => 'O', 'Õ' => 'O', 'Ú' => 'U', 'Ü' => 'U', 'Ç' => 'C']);
+    return trim(preg_replace('~\s*[/\-]\s*[A-Z]{2}$~', '', $s)); // "VITÓRIA DA CONQUISTA/BA" => "VITORIA DA CONQUISTA"
+}
+function escMunicipaisColab($pdo, $nome) { // ['MM-DD', ...] dos feriados municipais da cidade do colaborador
+    static $c = [];
+    if (array_key_exists($nome, $c)) return $c[$nome];
+    $out = [];
+    try {
+        $st = $pdo->prepare("SELECT localidade FROM funcionarios WHERE nome = :n"); $st->execute(['n' => $nome]);
+        $cid = escCidadeNorm($st->fetchColumn() ?: '');
+        if ($cid !== '') foreach ($pdo->query("SELECT to_char(data_feriado,'MM-DD') AS md, localidade FROM feriados WHERE tipo = 'municipal' AND data_feriado IS NOT NULL")->fetchAll(PDO::FETCH_ASSOC) as $f)
+            if (escCidadeNorm($f['localidade']) === $cid) $out[] = $f['md'];
+    } catch (Exception $e) {}
+    return $c[$nome] = $out;
+}
+function escComMunicipais($pdo, $nome, $fn) { // executa $fn considerando os feriados municipais do colaborador
+    $ant = $GLOBALS['pgMunColab'] ?? null; $GLOBALS['pgMunColab'] = escMunicipaisColab($pdo, $nome);
+    try { return $fn(); } finally { $GLOBALS['pgMunColab'] = $ant; }
+}
+// Recalcula os sobreavisos já lançados em dias de feriado municipal quando o cadastro de feriados ou as localidades mudam.
+function escRecalcularMunicipaisSeMudou($pdo) {
+    $hash = md5(json_encode([
+        $pdo->query("SELECT string_agg(to_char(data_feriado,'MM-DD') || '|' || COALESCE(localidade, ''), ';' ORDER BY data_feriado, localidade) FROM feriados WHERE tipo = 'municipal'")->fetchColumn(),
+        $pdo->query("SELECT string_agg(nome || '|' || COALESCE(localidade, ''), ';' ORDER BY nome) FROM funcionarios")->fetchColumn(), 'v2']));
+    $q = $pdo->prepare("SELECT valor FROM configuracoes WHERE chave = 'esc_fer_mun_hash'"); $q->execute();
+    if ($q->fetchColumn() === $hash) return 0;
+    $fer = $pdo->query("SELECT data_feriado FROM feriados WHERE tipo = 'nacional'")->fetchAll(PDO::FETCH_COLUMN);
+    $del = $pdo->prepare("DELETE FROM escala_dados WHERE nome_colaborador = :n AND data_escala = :d");
+    $ins = $pdo->prepare("INSERT INTO escala_dados (nome_colaborador, data_escala, status, horas_total, arquivo_anexo, data_inicio, hora_inicio, data_fim, hora_fim) VALUES (:n, :d, :s, :h, :a, :di, :hi, :df, :hf)");
+    $n = 0;
+    $rows = $pdo->query("SELECT nome_colaborador AS nome, to_char(data_escala,'YYYY-MM-DD') AS d, max(status) AS status, max(arquivo_anexo) AS anexo FROM escala_dados WHERE status LIKE 'plantao%' GROUP BY 1, 2")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $r) {
+        $w = (int)date('w', strtotime($r['d']));
+        if ($w === 0 || $w === 6 || in_array($r['d'], $fer)) continue; // fim de semana e feriado nacional já usam os períodos próprios
+        $segs = escComMunicipais($pdo, $r['nome'], function () use ($pdo, $r, $fer) { return pgSegmentosPlantao($pdo, $r['d'], $fer); });
+        $atual = $pdo->prepare( // reprocessa só o que mudou
+            "SELECT to_char(data_inicio,'YYYY-MM-DD') || ' ' || hora_inicio || '-' || hora_fim FROM escala_dados WHERE nome_colaborador = :n AND data_escala = :d ORDER BY data_inicio, hora_inicio");
+        $atual->execute(['n' => $r['nome'], 'd' => $r['d']]);
+        $novo = array_map(function ($s) { return $s['d_ini'] . ' ' . $s['h_ini'] . '-' . $s['h_fim']; }, $segs);
+        if ($atual->fetchAll(PDO::FETCH_COLUMN) === $novo) continue;
+        $pdo->beginTransaction();
+        try {
+            $del->execute(['n' => $r['nome'], 'd' => $r['d']]);
+            foreach ($segs as $s) $ins->execute(['n' => $r['nome'], 'd' => $r['d'], 's' => $r['status'], 'h' => $s['horas'], 'a' => $r['anexo'], 'di' => $s['d_ini'], 'hi' => $s['h_ini'], 'df' => $s['d_fim'], 'hf' => $s['h_fim']]);
+            $pdo->commit(); $n++;
+        } catch (Exception $e) { if ($pdo->inTransaction()) $pdo->rollBack(); }
+    }
+    $pdo->prepare("INSERT INTO configuracoes (chave, valor) VALUES ('esc_fer_mun_hash', :v) ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor")->execute(['v' => $hash]);
+    return $n;
+}
 function pgTipoDoDia($dataStr, $feriadosDB) {
     if (in_array($dataStr, $feriadosDB)) return 'FERIADO';
+    if (!empty($GLOBALS['pgMunColab']) && in_array(substr($dataStr, 5, 5), $GLOBALS['pgMunColab'], true)) return 'FIM_DE_SEMANA'; // FER_MUNICIPAL_V2
     $w = (int)date('w', strtotime($dataStr));
     return ($w === 0 || $w === 6) ? 'FIM_DE_SEMANA' : 'SEMANA';
 }

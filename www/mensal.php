@@ -59,6 +59,8 @@
         renderMonthly(); 
     }
 
+    function escCidNorm(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim().replace(/\s*[\/-]\s*[A-Z]{2}$/, '').trim(); } // FER_MUNICIPAL_V2
+
     function renderMonthly() {
         const thead = document.getElementById('monthly-headers'); const tbody = document.getElementById('monthly-body'); 
         if (!thead || !tbody) return;
@@ -103,7 +105,7 @@
             // FER_MUNICIPAL_V1: só feriado nacional/estadual (e os móveis) pinta a coluna; o municipal mantém a bolinha e pinta só o sobreaviso de quem é da cidade
             let ferDia = (typeof listaFeriadosCache !== 'undefined' && listaFeriadosCache) ? listaFeriadosCache.filter(f => f.data_feriado && f.data_feriado.substring(5, 10) === dataStrMMDD) : [];
             let isHolidayGeral = !!fMovel || ferDia.some(f => f.tipo !== 'municipal');
-            let munCidades = ferDia.filter(f => f.tipo === 'municipal').map(f => String(f.localidade || '').trim().toUpperCase());
+            let munCidades = ferDia.filter(f => f.tipo === 'municipal').map(f => escCidNorm(f.localidade));
             diasInfo.push({ dia: dDia, mes: dMes, ano: dAno, isWeekend, isHoliday, isHolidayGeral, munCidades, holidayData, isHoje, dataStr, dayOfWeek: currentDayOfWeek });
             curDate.setDate(curDate.getDate() + 1);
         }
@@ -166,7 +168,7 @@
                     let statusEscala = (typeof cellData === 'object' && cellData !== null) ? cellData.status : cellData;
                     let anexoData = (typeof cellData === 'object' && cellData !== null) ? cellData.anexo : null;
 
-                    let visualData = getStatusVisuals(statusEscala, d.isWeekend || d.isHolidayGeral || d.munCidades.includes(String(funcData.localidade || '').trim().toUpperCase())); 
+                    let visualData = getStatusVisuals(statusEscala, d.isWeekend || d.isHolidayGeral || d.munCidades.includes(escCidNorm(funcData.localidade))); 
                     let hasAnexoMarker = anexoData ? `<div class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></div>` : '';
                     if (typeof marcadorHoraExtra === 'function') hasAnexoMarker += marcadorHoraExtra(nome, d.dataStr); // HE_PATCH_V1 DASH_PATCH_V1
                     const sobrepos = (typeof listarSobreposicoesPlantao === 'function') ? listarSobreposicoesPlantao(nome, d.dataStr) : null;

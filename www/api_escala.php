@@ -5,6 +5,7 @@ require_once 'conexao.php';
 require_once __DIR__ . '/sessao_inativ.php'; // SESSAO_INATIV_V1
 require_once __DIR__ . '/hora_extra.php'; // HE_PATCH_V1
 if ($pdo) { try { heGarantirTabelas($pdo); } catch (Exception $e) {} }
+if ($pdo && isset($_SESSION['usuario'])) { try { escRecalcularMunicipaisSeMudou($pdo); } catch (Exception $e) { error_log('escala: recálculo feriado municipal: ' . $e->getMessage()); } } // FER_MUNICIPAL_V2
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -83,7 +84,7 @@ function inserirPlantao($pdo, $nome, $dataStr, $status, $anexoUrl, $feriadosDB) 
 
     if (str_starts_with($status, 'plantao')) {
         // HE_PATCH_V1: horários vêm dos períodos de sobreaviso configurados (Painel de Administração)
-        $segmentos = pgSegmentosPlantao($pdo, $dataStr, $feriadosDB);
+        $segmentos = escComMunicipais($pdo, $nome, function () use ($pdo, $dataStr, $feriadosDB) { return pgSegmentosPlantao($pdo, $dataStr, $feriadosDB); }); // FER_MUNICIPAL_V2
         foreach ($segmentos as $sg) {
             $stmtIns->execute([
                 'nome' => $nome, 'data' => $dataStr, 'status' => $status,
@@ -131,7 +132,7 @@ function soChecar24h($pdo, $nome, $datas, $feriadosDB) {
     $st = $pdo->prepare("SELECT DISTINCT to_char(data_escala,'YYYY-MM-DD') FROM escala_dados WHERE nome_colaborador = :n AND status LIKE 'plantao%' AND data_escala BETWEEN :a AND :b");
     $st->execute(['n' => $nome, 'a' => $a, 'b' => $b]);
     $iv = [];
-    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $d) { $alvo = in_array($d, $datas, true); foreach (soIntervalosDia($pdo, $d, $feriadosDB) as $x) $iv[] = [$x[0], $x[1], $alvo]; }
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $d) { $alvo = in_array($d, $datas, true); foreach (escComMunicipais($pdo, $nome, function () use ($pdo, $d, $feriadosDB) { return soIntervalosDia($pdo, $d, $feriadosDB); }) as $x) $iv[] = [$x[0], $x[1], $alvo]; }
     usort($iv, function ($x, $y) { return $x[0] <=> $y[0]; });
     $bl = [];
     foreach ($iv as $x) {
