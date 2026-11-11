@@ -359,9 +359,12 @@ function relRotear($pdo, $action, $usuario) {
             $ini = (string)($in['ini'] ?? ''); $fim = (string)($in['fim'] ?? '');
             if (!preg_match('/^\d{4}-\d{2}-15$/', $ini) || !preg_match('/^\d{4}-\d{2}-14$/', $fim)) relJson(['sucesso' => false, 'erro' => 'Competência inválida.']);
             $comp = relCompetencia($fim); $tipo = ($in['tipo'] ?? '') === 'vr' ? 'vr' : 'horas';
-            $arq = relGerar($pdo, $tipo, $comp, isset($in['nomes']) && is_array($in['nomes']) ? ['nomes' => $in['nomes']] : []);
+            $filtro = isset($in['nomes']) && is_array($in['nomes']) ? ['nomes' => $in['nomes']] : [];
+            $word = ($in['formato'] ?? '') === 'docx'; // RELATORIOS_WORD_V1
+            if ($word) { require_once __DIR__ . '/relatorios_docx.php'; $arq = $tipo === 'vr' ? relDocxVr($pdo, $comp, $filtro) : relDocxHoras($pdo, $comp, $filtro); }
+            else $arq = relGerar($pdo, $tipo, $comp, $filtro);
             $aud('Baixou o ' . REL_TIPOS[$tipo] . ' de ' . $comp['mes'] . '/' . $comp['ano']);
-            header_remove('Content-Type'); header('Content-Type: application/pdf'); header('Content-Disposition: attachment; filename="' . $arq['arquivo'] . '"');
+            header_remove('Content-Type'); header('Content-Type: ' . ($word ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf')); header('Content-Disposition: attachment; filename="' . $arq['arquivo'] . '"');
             header('Content-Length: ' . strlen($arq['bin'])); echo $arq['bin']; exit;
         }
         if ($action === 'rel_listar') {

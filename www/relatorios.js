@@ -27,19 +27,42 @@
       return base.map(function (f) { return f.nome; });
     } catch (e) { return null; }
   }
-  root.baixarRelatorioServidor = async function (tipo, btn) {
-    var c = competenciaTela(), body = { tipo: tipo, ini: c.ini, fim: c.fim }, n = nomesVisiveis();
+  root.baixarRelatorioServidor = async function (tipo, btn, formato) { // RELATORIOS_WORD_V1
+    var c = competenciaTela(), body = { tipo: tipo, ini: c.ini, fim: c.fim, formato: formato || 'pdf' }, n = nomesVisiveis();
     if (n) body.nomes = n;
     if (btn) btn.disabled = true;
     try {
       var r = await fetch('api_escala.php?action=rel_pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' });
-      if (!/pdf/.test(r.headers.get('Content-Type') || '')) { var j = {}; try { j = await r.json(); } catch (e) {} throw new Error(j.erro || 'Não foi possível gerar o PDF.'); }
+      if (!/pdf|wordprocessingml/.test(r.headers.get('Content-Type') || '')) { var j = {}; try { j = await r.json(); } catch (e) {} throw new Error(j.erro || 'Não foi possível gerar o arquivo.'); }
       var nome = ((r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/) || [])[1] || 'relatorio.pdf';
       var u = URL.createObjectURL(await r.blob()), a = doc.createElement('a');
       a.href = u; a.download = nome; doc.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 5000);
     } catch (e) { toast(e.message, 'error'); } finally { if (btn) btn.disabled = false; }
   };
   root.baixarVRExtra = function (btn) { return root.baixarRelatorioServidor('vr', btn); };
+  // Menu dos ícones: escolher PDF ou Word. O PDF do Relatório de Horas continua sendo o gerado na própria tela.
+  root.menuRelatorio = function (ev, tipo) {
+    ev.stopPropagation();
+    var btn = ev.currentTarget, m = el('rel-menu');
+    if (m) { var mesmo = m.getAttribute('data-tipo') === tipo; m.remove(); if (mesmo) return; }
+    m = doc.createElement('div'); m.id = 'rel-menu'; m.setAttribute('data-tipo', tipo);
+    m.className = 'fixed z-[500] bg-white border border-slate-200 rounded-lg shadow-xl py-1 text-xs font-bold text-slate-700';
+    m.style.minWidth = '200px';
+    var r = btn.getBoundingClientRect(); m.style.top = (r.bottom + 6) + 'px'; m.style.left = Math.max(8, Math.min(r.left, root.innerWidth - 210)) + 'px';
+    m.innerHTML = '<div class="px-3 py-1.5 text-[10px] uppercase text-slate-400">' + (tipo === 'vr' ? 'Formulário VR Extra' : 'Relatório de Horas') + '</div>' +
+      '<button type="button" data-f="pdf" class="block w-full text-left px-3 py-2 hover:bg-slate-100">📄 Baixar em PDF</button>' +
+      '<button type="button" data-f="docx" class="block w-full text-left px-3 py-2 hover:bg-slate-100">📝 Baixar em Word (.docx)</button>';
+    doc.body.appendChild(m);
+    m.onclick = function (e) {
+      var b = e.target.closest('[data-f]'); if (!b) return; m.remove();
+      var f = b.getAttribute('data-f');
+      if (tipo === 'horas' && f === 'pdf' && typeof gerarRelatorioPDF === 'function') return gerarRelatorioPDF();
+      root.baixarRelatorioServidor(tipo, btn, f);
+    };
+    setTimeout(function () {
+      doc.addEventListener('click', function fechar(e) { if (!m.contains(e.target)) { m.remove(); doc.removeEventListener('click', fechar); } });
+    }, 0);
+  };
 
   /* ---------- aba Relatórios nas Configurações ---------- */
   var TIPOS = { horas: 'Relatório de Horas (sobreaviso)', vr: 'Formulário VR Extra (ticket extra)' };
