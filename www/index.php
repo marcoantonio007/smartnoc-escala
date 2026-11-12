@@ -2463,19 +2463,32 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
                 usuario_logado: currentLogin
             }; 
             
+            // MARCACAO_RAPIDA_V1: pinta a célula na hora e grava em segundo plano (se o servidor recusar, desfaz)
+            document.getElementById('cell-context-menu').classList.add('hidden'); 
+            targetCellData = null; 
+            if (!plantaoMensalDados[nome]) plantaoMensalDados[nome] = {};
+            const anterior = plantaoMensalDados[nome][dataStr];
+            if (status) plantaoMensalDados[nome][dataStr] = { status, anexo: (cellObj && typeof cellObj === 'object') ? cellObj.anexo : null, fracoes: [] };
+            else delete plantaoMensalDados[nome][dataStr];
+            try { renderAll(); } catch (e) {}
+            const desfazer = () => {
+                if (!plantaoMensalDados[nome]) plantaoMensalDados[nome] = {};
+                if (anterior === undefined) delete plantaoMensalDados[nome][dataStr]; else plantaoMensalDados[nome][dataStr] = anterior;
+                try { renderAll(); } catch (e) {}
+            };
             try { 
                 const response = await fetch('api_escala.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyData) }); 
                 const result = await response.json(); 
                 if (!result.sucesso && result.erro) { 
+                    desfazer();
                     alert(result.erro); 
                 } else { 
-                    await recarregarDadosBanco();
-                    if (status) avisarSobreposicaoPlantao(nome, dataStr); 
+                    recarregarDadosBanco().then(() => { if (status) avisarSobreposicaoPlantao(nome, dataStr); }); // horários e avisos chegam logo depois
                 } 
-            } catch(e) { } 
-            
-            document.getElementById('cell-context-menu').classList.add('hidden'); 
-            targetCellData = null; 
+            } catch(e) { 
+                desfazer();
+                if (typeof showToast === 'function') showToast('Não foi possível salvar. Verifique a conexão e tente de novo.', 'error');
+            } 
         }
         
         function getStatusVisuals(statusObj, isWeekendOrHoliday) { 
