@@ -54,7 +54,7 @@ function relIvFracao($f) {
 }
 // Linhas dos relatórios. $filtro: ['nomes' => [...]] (o que está visível na tela) ou ['setores' => [...]] (envio por e-mail); vazio = todos
 function relDados($pdo, $ini, $fim, $filtro = []) {
-    $func = $pdo->query("SELECT id, nome, COALESCE(NULLIF(nome_completo, ''), nome) AS nc, COALESCE(setor, '') AS setor FROM funcionarios")->fetchAll(PDO::FETCH_ASSOC);
+    $func = $pdo->query("SELECT id, nome, COALESCE(NULLIF(nome_completo, ''), nome) AS nc, COALESCE(NULLIF(trim(matricula), ''), lpad(id::text, 6, '0')) AS matricula, COALESCE(setor, '') AS setor FROM funcionarios")->fetchAll(PDO::FETCH_ASSOC);
     $nomes = isset($filtro['nomes']) && is_array($filtro['nomes']) ? array_flip(array_map('strval', $filtro['nomes'])) : null;
     $setores = !empty($filtro['setores']) ? array_flip(array_map(function ($s) { return mb_strtoupper(trim($s), 'UTF-8'); }, $filtro['setores'])) : null;
     $func = array_values(array_filter($func, function ($f) use ($nomes, $setores) {
@@ -86,7 +86,7 @@ function relDados($pdo, $ini, $fim, $filtro = []) {
         }
         $horas = max(0, $horas - min($desc, round($horas * 60)) / 60);
         $tk = array_keys(array_filter($porDia, function ($m) { return $m > REL_TICKET_MIN; })); sort($tk);
-        $out[] = ['matricula' => str_pad((string)$f['id'], 6, '0', STR_PAD_LEFT), 'nome' => $n, 'nc' => $f['nc'], 'dias' => $dias, 'horas' => $horas,
+        $out[] = ['matricula' => (string)$f['matricula'], 'nome' => $n, 'nc' => $f['nc'], 'dias' => $dias, 'horas' => $horas,
                   'tickets' => array_map(function ($dn) { return gmdate('d/m', $dn * 86400); }, $tk)];
     }
     usort($out, function ($x, $y) { return strcoll(mb_strtoupper($x['nc'], 'UTF-8'), mb_strtoupper($y['nc'], 'UTF-8')); });

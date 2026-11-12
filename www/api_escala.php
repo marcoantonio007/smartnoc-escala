@@ -650,6 +650,8 @@ if ($action === 'salvar_funcionario' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         for ($t = 9; $okCpf && $t < 11; $t++) { $s = 0; for ($i = 0; $i < $t; $i++) $s += (int)$cpf[$i] * (($t + 1) - $i); if ((int)$cpf[$t] !== ((10 * $s) % 11) % 10) $okCpf = false; }
         if (!$okCpf) { echo json_encode(['sucesso' => false, 'erro' => 'CPF inválido.']); exit; }
     }
+    $matColab = null; // MATRICULA_V1: null = não veio na tela (mantém)
+    if (isset($_POST['matricula'])) { $matColab = preg_replace('/\s+/', '', (string)$_POST['matricula']); if ($matColab !== '' && !preg_match('/^[0-9A-Za-z.\-]{1,20}$/', $matColab)) { echo json_encode(['sucesso' => false, 'erro' => 'Matrícula inválida (use só números/letras, até 20).']); exit; } }
     $emailColab = null; // EMAIL_COLAB_V1: null = não veio na tela (mantém o atual); '' = sem e-mail
     if (isset($_POST['email'])) { $emailColab = escEmailValidar($_POST['email']); if ($emailColab === null) { echo json_encode(['sucesso' => false, 'erro' => 'E-mail inválido.']); exit; } }
     try {
@@ -664,6 +666,11 @@ if ($action === 'salvar_funcionario' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             registrarAuditoria($pdo, $usuarioLogado, 'CRIAR COLABORADOR', "Cadastrou novo colaborador: $nome");
         }
         if ($emailColab !== null) escEmailSalvar($pdo, $nome, $emailColab); // EMAIL_COLAB_V1
+        if ($matColab !== null) { // MATRICULA_V1
+            escEmailGarantir($pdo);
+            if ($matColab !== '') { $dup = $pdo->prepare("SELECT nome FROM funcionarios WHERE matricula = :m AND nome <> :n LIMIT 1"); $dup->execute(['m' => $matColab, 'n' => $nome]); if ($o = $dup->fetchColumn()) throw new Exception('A matrícula ' . $matColab . ' já está cadastrada para ' . $o . '.'); }
+            $pdo->prepare("UPDATE funcionarios SET matricula = NULLIF(:m, '') WHERE nome = :n")->execute(['m' => $matColab, 'n' => $nome]);
+        }
                 // --- INÍCIO SALVAR VÍNCULOS WHATSAPP ---
         $func_id = !empty($id) ? $id : $pdo->query("SELECT id FROM funcionarios WHERE nome = " . $pdo->quote($_POST['nome'] ?? '') . " ORDER BY id DESC LIMIT 1")->fetchColumn();
         $grupos_wpp = isset($_POST['grupos_wpp']) ? json_decode($_POST['grupos_wpp'], true) : [];

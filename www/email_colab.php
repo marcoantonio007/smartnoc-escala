@@ -4,6 +4,7 @@
 function escEmailGarantir($pdo) {
     static $ok = false; if ($ok) return; $ok = true;
     $pdo->exec("ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS email VARCHAR(200)");
+    $pdo->exec("ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS matricula VARCHAR(20)"); // MATRICULA_V1
     $q = $pdo->prepare("SELECT valor FROM configuracoes WHERE chave = 'email_colab_migrado'"); $q->execute();
     if ($q->fetchColumn()) return;
     if ($pdo->query("SELECT to_regclass('ponto_colaboradores')")->fetchColumn()) // traz os e-mails que já estavam cadastrados no Ponto
