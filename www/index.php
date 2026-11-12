@@ -3672,7 +3672,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
     atualizarBotaoMes();
 })();
 </script>
-<script src="gestao.js?v=acc1"></script>
+<script src="gestao.js?v=dash2"></script>
 <script src="relatorios.js?v=nome1"></script>
 <script src="auditoria_export.js?v=3"></script>
 <script src="colab_acesso.js?v=2"></script>

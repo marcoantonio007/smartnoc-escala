@@ -840,6 +840,7 @@
         if (mode === 'gestao') {
           if (!ehGestor()) return orig('week');
           garantirViewGestao();
+          if (gView() !== 'gestao') gestaoRef = null; // DASH_MES_MENSAL_V1: ao abrir, o dashboard mostra a mesma folha da escala mensal
           orig('gestao');
           el('view-gestao').classList.remove('hidden');
           var fb = el('filter-bar-container');
