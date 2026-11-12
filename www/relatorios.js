@@ -11,7 +11,7 @@
   }
   function pad(n) { return String(n).padStart(2, '0'); }
 
-  /* ---------- download (competência e colaboradores visíveis na tela, igual ao Relatório de Horas) ---------- */
+  /* ---------- download (competência e colaboradores visíveis na tela, igual ao Relatório Sobreaviso) ---------- */
   function competenciaTela() {
     var d = (typeof currentMonthDate !== 'undefined') ? currentMonthDate : new Date();
     var a = d.getFullYear(), m = d.getMonth(), fa = a, fm = m + 1; if (fm > 11) { fm = 0; fa++; }
@@ -40,7 +40,7 @@
     } catch (e) { toast(e.message, 'error'); } finally { if (btn) btn.disabled = false; }
   };
   root.baixarVRExtra = function (btn) { return root.baixarRelatorioServidor('vr', btn); };
-  // Menu dos ícones: escolher PDF ou Word. O PDF do Relatório de Horas continua sendo o gerado na própria tela.
+  // Menu dos ícones: escolher PDF ou Word. O PDF do Relatório Sobreaviso continua sendo o gerado na própria tela.
   root.menuRelatorio = function (ev, tipo) {
     ev.stopPropagation();
     var btn = ev.currentTarget, m = el('rel-menu');
@@ -49,7 +49,7 @@
     m.className = 'fixed z-[500] bg-white border border-slate-200 rounded-lg shadow-xl py-1 text-xs font-bold text-slate-700';
     m.style.minWidth = '200px';
     var r = btn.getBoundingClientRect(); m.style.top = (r.bottom + 6) + 'px'; m.style.left = Math.max(8, Math.min(r.left, root.innerWidth - 210)) + 'px';
-    m.innerHTML = '<div class="px-3 py-1.5 text-[10px] uppercase text-slate-400">' + (tipo === 'vr' ? 'Formulário VR Extra' : 'Relatório de Horas') + '</div>' +
+    m.innerHTML = '<div class="px-3 py-1.5 text-[10px] uppercase text-slate-400">' + (tipo === 'vr' ? 'Formulário VR Extra' : 'Relatório Sobreaviso') + '</div>' +
       '<button type="button" data-f="pdf" class="block w-full text-left px-3 py-2 hover:bg-slate-100">📄 Baixar em PDF</button>' +
       '<button type="button" data-f="docx" class="block w-full text-left px-3 py-2 hover:bg-slate-100">📝 Baixar em Word (.docx)</button>';
     doc.body.appendChild(m);
@@ -64,7 +64,7 @@
   };
 
   /* ---------- aba Relatórios nas Configurações ---------- */
-  var TIPOS = { horas: 'Relatório de Horas (sobreaviso)', vr: 'Formulário VR Extra (ticket extra)' };
+  var TIPOS = { horas: 'Relatório Sobreaviso', vr: 'Formulário VR Extra (ticket extra)' };
   var L = 'block text-[10px] font-bold text-slate-600 uppercase mb-1', I = 'w-full border rounded px-3 py-1.5 text-xs bg-white';
   var estado = { envios: [], setores: [], editando: null };
 
@@ -78,7 +78,7 @@
     card.innerHTML = '<h3 class="text-sm font-bold text-slate-700 mb-1 border-b pb-1">📊 Relatórios por e-mail</h3>' +
       '<p class="text-[11px] text-slate-500 mb-3">O sistema envia o PDF da <b>última competência fechada</b> (15 a 14) no dia e hora escolhidos. Ex.: dia 15 às 08:00 envia a competência que terminou no dia 14.</p>' +
       '<div id="rel-aviso"></div>' +
-      '<div class="bg-white border rounded p-3 mb-3"><div class="text-[11px] font-black text-slate-700 uppercase mb-2">Cabeçalho do Relatório de Horas (sobreaviso)</div>' +
+      '<div class="bg-white border rounded p-3 mb-3"><div class="text-[11px] font-black text-slate-700 uppercase mb-2">Cabeçalho do Relatório Sobreaviso</div>' +
       '<div class="grid grid-cols-1 md:grid-cols-2 gap-2">' +
       '<div><label class="' + L + '">Centro de custo</label><input id="rel-cch" class="' + I + '" placeholder="210300406"></div>' +
       '<div><label class="' + L + '">Responsável</label><input id="rel-resph" class="' + I + '"></div></div></div>' +

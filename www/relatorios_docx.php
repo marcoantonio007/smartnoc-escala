@@ -1,5 +1,5 @@
 <?php
-// relatorios_docx.php — RELATORIOS_DOCX_V1: Relatório de Horas e Formulário VR Extra em Word (.docx), no mesmo padrão dos PDFs.
+// relatorios_docx.php — RELATORIOS_DOCX_V1: Relatório Sobreaviso e Formulário VR Extra em Word (.docx), no mesmo padrão dos PDFs.
 // Gera o .docx sem bibliotecas (o ZIP é montado aqui). Incluído por relatorios.php quando o formato pedido é Word.
 
 function relZip($arqs) { // [nome => conteúdo] -> binário .zip (deflate)

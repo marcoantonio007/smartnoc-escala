@@ -1,5 +1,5 @@
 <?php
-// relatorios.php — RELATORIOS_V1: Relatório de Horas (sobreaviso) e Formulário de VR Extra (ticket extra) em PDF,
+// relatorios.php — RELATORIOS_V1: Relatório Sobreaviso e Formulário de VR Extra (ticket extra) em PDF,
 // gerados no servidor, para baixar na Escala e para envio automático por e-mail (Configurações → Relatórios).
 // Incluído por api_escala.php (ações rel_*) e por relatorios_cron.php (envio agendado, rodado pelo cron do servidor).
 date_default_timezone_set('America/Sao_Paulo'); // dia/hora dos envios e datas dos relatórios no horário de Brasília
@@ -8,7 +8,7 @@ require_once __DIR__ . '/smtp_mail.php';
 
 const REL_TICKET_MIN = 120; // ticket extra: soma do dia (calendário) ESTRITAMENTE maior que 2h — mesma regra da Escala
 const REL_MESES = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
-const REL_TIPOS = ['horas' => 'Relatório de Horas (sobreaviso)', 'vr' => 'Formulário VR Extra (ticket extra)'];
+const REL_TIPOS = ['horas' => 'Relatório Sobreaviso', 'vr' => 'Formulário VR Extra (ticket extra)'];
 
 function relGarantir($pdo) {
     $pdo->exec("CREATE TABLE IF NOT EXISTS relatorios_envios (id SERIAL PRIMARY KEY, tipo VARCHAR(10) NOT NULL, ativo BOOLEAN NOT NULL DEFAULT TRUE,
