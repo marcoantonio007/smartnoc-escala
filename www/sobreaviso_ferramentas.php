@@ -102,8 +102,8 @@ function soRotear($pdo, $action, $usuario) {
         if (!$para || count($para) > 20) $resp(['sucesso' => false, 'erro' => 'Informe de 1 a 20 e-mails.']);
         foreach ($para as $e) if (!filter_var($e, FILTER_VALIDATE_EMAIL)) $resp(['sucesso' => false, 'erro' => 'E-mail inválido: ' . $e]);
         $temResumo = is_array($in['resumo'] ?? null); // DASH_CORPO_V1
-        $pdf = $temResumo ? null : base64_decode((string)($in['pdf'] ?? ''), true);
-        if (!$temResumo && ($pdf === false || substr($pdf, 0, 5) !== '%PDF-' || strlen($pdf) > 8 * 1024 * 1024)) $resp(['sucesso' => false, 'erro' => 'PDF inválido.']);
+        $pdf = base64_decode((string)($in['pdf'] ?? ''), true); // DASH_ANEXO_V2: PDF sempre anexo
+        if ($pdf === false || substr($pdf, 0, 5) !== '%PDF-' || strlen($pdf) > 8 * 1024 * 1024) $resp(['sucesso' => false, 'erro' => 'PDF inválido.']);
         $tit = mb_substr(trim((string)($in['titulo'] ?? '')), 0, 60);
         $assunto = mb_substr(trim((string)($in['assunto'] ?? '')), 0, 150); if ($assunto === '') $assunto = 'Dashboard Gerencial — ' . $tit;
         $arq = preg_replace('/[^A-Za-z0-9_.-]+/', '_', (string)($in['arquivo'] ?? 'Dashboard.pdf')); if (!preg_match('/\.pdf$/i', $arq)) $arq .= '.pdf';
@@ -115,10 +115,10 @@ function soRotear($pdo, $action, $usuario) {
             ($msg !== '' ? '<p style="white-space:pre-line">' . $h($msg) . '</p>' : '') .
             '<p>Segue em anexo o Dashboard Gerencial da folha <b>' . $h($tit) . '</b> (sobreaviso, hora extra e tickets extras).</p>' .
             '<p style="font-size:12px;color:#6b7280">Enviado por ' . $h($usuario) . ' em ' . date('d/m/Y H:i') . '.</p></div></div>';
-        if ($temResumo) $html = soDashHtml($in['resumo'], $msg, $usuario);
+        if ($temResumo) $html = soDashResumoHtml($in['resumo'], $msg, $usuario);
         $ok = 0; $falhas = [];
         foreach ($para as $e) {
-            $r = smtpEnviar($cfg, $e, $assunto, $html, ($msg !== '' ? $msg . "\n\n" : '') . ($temResumo ? "Resumo do Dashboard Gerencial da folha $tit. Abra este e-mail em um leitor que exiba HTML para ver as tabelas." : "Segue em anexo o Dashboard Gerencial da folha $tit."), ($pdf ? [['nome' => $arq, 'tipo' => 'application/pdf', 'dados' => $pdf]] : []));
+            $r = smtpEnviar($cfg, $e, $assunto, $html, ($msg !== '' ? $msg . "\n\n" : '') . ($temResumo ? "Segue em anexo o Dashboard Gerencial da folha $tit (PDF)." : "Segue em anexo o Dashboard Gerencial da folha $tit."), ($pdf ? [['nome' => $arq, 'tipo' => 'application/pdf', 'dados' => $pdf]] : []));
             if ($r['ok']) $ok++; else { $falhas[] = $e; error_log('escala: e-mail do dashboard para ' . $e . ': ' . $r['erro']); }
         }
         if (!$ok) $resp(['sucesso' => false, 'erro' => 'Não foi possível enviar o e-mail. Verifique a configuração do SMTP.']);
@@ -173,5 +173,33 @@ function soDashHtml($r, $msg, $usuario) {
     if ($d = $lst('dias', 62)) { $o .= $tit('Hora extra por dia'); $o .= $tabela(['Dia', 'Hora extra', 'Colaboradores'], $d, '#b45309', [1]); }
     $o .= '<p style="font-size:11px;color:#64748b;margin:4px 0 0">Sobreaviso líquido = sobreaviso bruto menos as horas extras que coincidem com a janela de sobreaviso. Ticket extra: um por dia do calendário em que a soma da hora extra supera 2h.</p>';
     $o .= '<p style="font-size:11px;color:#94a3b8;margin:8px 0 0">Enviado por ' . $h($usuario) . ' em ' . date('d/m/Y H:i') . ' · Plantão Técnico</p></div></div>';
+    return $o;
+}
+
+// DASH_ANEXO_V2: corpo curto (indicadores principais); o relatório completo vai no PDF anexo
+function soDashResumoHtml($r, $msg, $usuario) {
+    $h = function ($s) { return htmlspecialchars(mb_substr((string)$s, 0, 300), ENT_QUOTES, 'UTF-8'); };
+    $cor = function ($c) { return preg_match('/^#[0-9a-fA-F]{6}$/', (string)$c) ? $c : '#334155'; };
+    $o = '<div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;max-width:640px;margin:0 auto">';
+    $o .= '<div style="background:#1e3a8a;color:#fff;padding:14px 18px;border-radius:8px 8px 0 0"><div style="font-size:16px;font-weight:bold">Dashboard Gerencial — ' . $h($r['titulo'] ?? '') . '</div>' .
+          '<div style="font-size:12px;opacity:.9;margin-top:3px">Folha de ' . $h($r['periodo'] ?? '') . ' · ' . (($r['setor'] ?? '') !== '' ? 'Setor ' . $h($r['setor']) : 'Todos os setores') . '</div></div>';
+    $o .= '<div style="border:1px solid #e2e8f0;border-top:0;padding:16px 18px;border-radius:0 0 8px 8px;background:#ffffff">';
+    if ($msg !== '') $o .= '<p style="white-space:pre-line;margin:0 0 14px">' . htmlspecialchars($msg, ENT_QUOTES, 'UTF-8') . '</p>';
+    $o .= '<p style="margin:0 0 10px;font-size:13px">Resumo da folha:</p><table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;margin:0 0 14px">';
+    foreach (array_slice(is_array($r['kpis'] ?? null) ? $r['kpis'] : [], 0, 4) as $k) {
+        $k = array_values((array)$k);
+        $o .= '<tr><td style="padding:7px 10px;border-left:4px solid ' . $cor($k[3] ?? '') . ';border-bottom:1px solid #f1f5f9;font-size:13px;color:#475569">' . $h($k[0] ?? '') . '</td>' .
+              '<td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:15px;font-weight:bold;text-align:right;color:#0f172a">' . $h($k[1] ?? '') . '</td>' .
+              '<td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:11px;color:#94a3b8">' . $h($k[2] ?? '') . '</td></tr>';
+    }
+    $o .= '</table>';
+    $he = array_slice(is_array($r['heTop'] ?? null) ? $r['heTop'] : [], 0, 5);
+    if ($he) {
+        $o .= '<p style="margin:0 0 6px;font-size:13px">Maiores horas extras:</p><ul style="margin:0 0 14px;padding-left:18px;font-size:13px">';
+        foreach ($he as $l) { $l = array_values((array)$l); $o .= '<li>' . $h($l[0] ?? '') . ' — <b>' . $h($l[1] ?? '') . '</b>' . ((int)($l[2] ?? 0) ? ' (' . (int)$l[2] . ' ticket' . ((int)$l[2] > 1 ? 's' : '') . ')' : '') . '</li>'; }
+        $o .= '</ul>';
+    }
+    $o .= '<p style="margin:0;font-size:13px">📎 O relatório completo (por colaborador, por setor e por dia) está no <b>PDF anexo</b>.</p>';
+    $o .= '<p style="font-size:11px;color:#94a3b8;margin:12px 0 0">Enviado por ' . $h($usuario) . ' em ' . date('d/m/Y H:i') . ' · Plantão Técnico</p></div></div>';
     return $o;
 }
