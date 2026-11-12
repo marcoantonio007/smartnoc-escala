@@ -80,4 +80,25 @@
     } catch (e) { if (typeof showToast === 'function') showToast(e.message, 'error'); else alert(e.message); }
     finally { if (btn) { btn.disabled = false; btn.innerHTML = rot; } }
   };
+  /* AUDITORIA_EXPORT_V2: um ícone só; ao clicar escolhe o formato (igual aos relatórios) */
+  root.menuAuditoriaExport = function (ev) {
+    ev.stopPropagation();
+    var btn = ev.currentTarget, m = doc.getElementById('audit-exp-menu');
+    if (m) { m.remove(); return; }
+    m = doc.createElement('div'); m.id = 'audit-exp-menu';
+    m.className = 'fixed z-[500] bg-white border border-slate-200 rounded-lg shadow-xl py-1 text-xs font-bold text-slate-700';
+    m.style.minWidth = '210px';
+    var r = btn.getBoundingClientRect(); m.style.top = (r.bottom + 6) + 'px'; m.style.left = Math.max(8, Math.min(r.right - 210, root.innerWidth - 218)) + 'px';
+    m.innerHTML = '<div class="px-3 py-1.5 text-[10px] uppercase text-slate-400">Exportar trilha filtrada</div>' +
+      '<button type="button" data-f="xlsx" class="block w-full text-left px-3 py-2 hover:bg-slate-100">📊 Baixar em Excel (.xlsx)</button>' +
+      '<button type="button" data-f="pdf" class="block w-full text-left px-3 py-2 hover:bg-slate-100">📄 Baixar em PDF</button>';
+    doc.body.appendChild(m);
+    m.onclick = function (e) {
+      var b = e.target.closest('[data-f]'); if (!b) return; m.remove();
+      root.exportarAuditoria(b.getAttribute('data-f'), btn);
+    };
+    setTimeout(function () {
+      doc.addEventListener('click', function fechar(e) { if (!m.contains(e.target)) { m.remove(); doc.removeEventListener('click', fechar); } });
+    }, 0);
+  };
 })(window);
