@@ -119,7 +119,24 @@
     el('dm-enviar').onclick = enviar;
     return m;
   }
-  function abrirEmail() {
+  // DASH_MEU_EMAIL_V1: com e-mail cadastrado para o login, envia na hora para ele; sem e-mail (ex.: admin), abre o formulário
+  async function abrirEmail() {
+    var s = snap(); if (!s) return;
+    var b = el('dash-btn-mail'), rot = b ? b.innerHTML : '';
+    if (b) { b.disabled = true; b.innerHTML = 'Enviando…'; }
+    try {
+      var r = await fetch('api_escala.php?action=so_meu_email', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      var me; try { me = await r.json(); } catch (e) { me = {}; }
+      if (!me.sucesso || !me.email) { abrirEmailForm(); return; }
+      var g = gerarPdf(), b64 = g.doc.output('datauristring').split(',')[1];
+      var r2 = await fetch('api_escala.php?action=so_dash_email', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ para: [me.email], assunto: 'Dashboard Gerencial — ' + s.nomeFolha + (s.setor ? ' — ' + s.setor : ''), mensagem: '', titulo: g.titulo, arquivo: g.nome, pdf: b64 }) });
+      var j; try { j = await r2.json(); } catch (e) { j = { sucesso: false, erro: 'Resposta inválida do servidor.' }; }
+      if (j.sucesso) toast('Dashboard enviado para ' + me.email + '.'); else toast(j.erro || 'Falha ao enviar.', 'error');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { if (b) { b.disabled = false; b.innerHTML = rot; if (root.lucide && root.lucide.createIcons) try { root.lucide.createIcons(); } catch (e) {} } }
+  }
+  function abrirEmailForm() {
     var s = snap(); if (!s) return;
     var m = modalEmail(), salvo = '';
     try { salvo = root.localStorage.getItem('dash_email_para') || ''; } catch (e) {}
@@ -156,7 +173,7 @@
       b.innerHTML = '<i data-lucide="' + ic + '" class="w-3.5 h-3.5"></i> ' + txtB; b.onclick = fn; grupo.appendChild(b);
     };
     mk('dash-btn-pdf', 'bg-red-600 hover:bg-red-700', 'Baixar o dashboard em PDF', 'file-down', 'PDF', baixar);
-    mk('dash-btn-mail', 'bg-blue-600 hover:bg-blue-700', 'Enviar o dashboard em PDF por e-mail', 'mail', 'E-mail', abrirEmail);
+    mk('dash-btn-mail', 'bg-blue-600 hover:bg-blue-700', 'Enviar o dashboard em PDF para o seu e-mail cadastrado', 'mail', 'E-mail', abrirEmail);
     if (root.lucide && root.lucide.createIcons) try { root.lucide.createIcons(); } catch (e) {}
   };
 })(window);

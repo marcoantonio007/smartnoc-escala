@@ -85,6 +85,15 @@ function soRotear($pdo, $action, $usuario) {
         if (function_exists('registrarAuditoria')) registrarAuditoria($pdo, $usuario, 'SOBREAVISO PONTUAL', "Lançou sobreaviso pontual de {$nome} em " . date('d/m/Y', strtotime($d)) . " das {$hi} às {$hf}" . ($b > 1440 ? ' (+1 dia)' : '') . ' — ' . sprintf('%dh%02d', intdiv($dur, 60), $dur % 60) . ($obs !== '' ? ' · Obs.: ' . $obs : ''));
         $resp(['sucesso' => true]);
     }
+    if ($action === 'so_meu_email') { // DASH_MEU_EMAIL_V1: e-mail do colaborador ligado ao login (pelo nome completo)
+        $st = $pdo->prepare("SELECT nome_completo FROM usuarios WHERE usuario = :u"); $st->execute(['u' => $_SESSION['usuario'] ?? '']);
+        $nc = trim((string)$st->fetchColumn()); $email = '';
+        if ($nc !== '') {
+            try { $q = $pdo->prepare("SELECT email FROM funcionarios WHERE upper(nome_completo) = upper(:a) OR upper(nome) = upper(:b) ORDER BY (upper(nome_completo) = upper(:c)) DESC LIMIT 1"); $q->execute(['a' => $nc, 'b' => $nc, 'c' => $nc]); $email = trim((string)$q->fetchColumn()); } catch (Exception $e) {}
+            if ($email === '') try { $q = $pdo->prepare("SELECT p.email FROM ponto_colaboradores p JOIN funcionarios f ON f.nome = p.nome WHERE upper(f.nome_completo) = upper(:a) OR upper(f.nome) = upper(:b) LIMIT 1"); $q->execute(['a' => $nc, 'b' => $nc]); $email = trim((string)$q->fetchColumn()); } catch (Exception $e) {}
+        }
+        $resp(['sucesso' => true, 'email' => filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null]);
+    }
     if ($action === 'so_dash_email') { // DASH_PDF_V1: envia o PDF do Dashboard Gerencial por e-mail
         require_once __DIR__ . '/smtp_mail.php';
         $cfg = smtpConfigLer($pdo);
