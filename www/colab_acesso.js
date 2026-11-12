@@ -54,6 +54,7 @@
     return card;
   }
   function sugerir() {
+    var s0 = el('func-filtro-sug'); if (s0) s0.classList.add('hidden'); return; // SEM_SUGESTOES_V1: só filtra a lista, sem a caixa de opções
     var inp = el('func-filtro'), sug = el('func-filtro-sug'); if (!inp || !sug) return;
     var t = inp.value.trim();
     if (!t) { sug.classList.add('hidden'); return; }
