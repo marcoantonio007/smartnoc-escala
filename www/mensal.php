@@ -171,10 +171,11 @@
                     let visualData = getStatusVisuals(statusEscala, d.isWeekend || d.isHolidayGeral || d.munCidades.includes(escCidNorm(funcData.localidade))); 
                     let hasAnexoMarker = anexoData ? `<div class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></div>` : '';
                     if (typeof marcadorHoraExtra === 'function') hasAnexoMarker += marcadorHoraExtra(nome, d.dataStr); // HE_PATCH_V1 DASH_PATCH_V1
+                    if (typeof soMarcadorPontual === 'function') hasAnexoMarker += soMarcadorPontual(cellData); // SO_FERRAMENTAS_V1
                     const sobrepos = (typeof listarSobreposicoesPlantao === 'function') ? listarSobreposicoesPlantao(nome, d.dataStr) : null;
                     const avisoTitulo = sobrepos ? ((sobrepos.limite ? 'Acima do limite de 2 técnicos no dia. Também de plantão: ' : 'Divide o plantão neste dia com: ') + sobrepos.nomes.join(', ')).replace(/"/g, '&quot;') : '';
                     const tituloPonto = (cellData && cellData.origem === 'ponto') ? ('Abono aprovado no Ponto: ' + String(cellData.motivo || '').replace(/"/g, '&quot;')) : '';
-                    const tituloFinal = [avisoTitulo, tituloPonto].filter(Boolean).join(' | ');
+                    const tituloFinal = [avisoTitulo, tituloPonto, (typeof soTituloPontual === 'function' ? soTituloPontual(cellData) : '')].filter(Boolean).join(' | ');
                     const atrTitulo = tituloFinal ? `title="${tituloFinal}"` : '';
                     const marcadorSobrepos = sobrepos ? `<div class="absolute -top-1 -left-1 w-2.5 h-2.5 bg-amber-400 rounded-full border border-white shadow" title="${avisoTitulo}"></div>` : '';
                     

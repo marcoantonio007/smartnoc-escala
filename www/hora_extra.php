@@ -237,7 +237,7 @@ function escRecalcularMunicipaisSeMudou($pdo) {
     $del = $pdo->prepare("DELETE FROM escala_dados WHERE nome_colaborador = :n AND data_escala = :d");
     $ins = $pdo->prepare("INSERT INTO escala_dados (nome_colaborador, data_escala, status, horas_total, arquivo_anexo, data_inicio, hora_inicio, data_fim, hora_fim) VALUES (:n, :d, :s, :h, :a, :di, :hi, :df, :hf)");
     $n = 0;
-    $rows = $pdo->query("SELECT nome_colaborador AS nome, to_char(data_escala,'YYYY-MM-DD') AS d, max(status) AS status, max(arquivo_anexo) AS anexo FROM escala_dados WHERE status LIKE 'plantao%' GROUP BY 1, 2")->fetchAll(PDO::FETCH_ASSOC);
+    $rows = $pdo->query("SELECT nome_colaborador AS nome, to_char(data_escala,'YYYY-MM-DD') AS d, max(status) AS status, max(arquivo_anexo) AS anexo FROM escala_dados WHERE status LIKE 'plantao%' AND status <> 'plantao_pontual' GROUP BY 1, 2")->fetchAll(PDO::FETCH_ASSOC);
     foreach ($rows as $r) {
         $w = (int)date('w', strtotime($r['d']));
         if ($w === 0 || $w === 6 || in_array($r['d'], $fer)) continue; // fim de semana e feriado nacional já usam os períodos próprios

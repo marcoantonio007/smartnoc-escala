@@ -481,6 +481,7 @@ if ($action === 'salvar_regras_sobreaviso' && $_SERVER['REQUEST_METHOD'] === 'PO
     } catch (Exception $e) { echo json_encode(['sucesso' => false, 'erro' => $e->getMessage()]); }
     exit;
 }
+if (strpos($action, 'so_') === 0) { require_once __DIR__ . '/sobreaviso_ferramentas.php'; soRotear($pdo, $action, $usuarioLogado ?? ($_SESSION['usuario'] ?? '')); exit; } // SO_FERRAMENTAS_V1
 if (strpos($action, 'rel_') === 0) { require_once __DIR__ . '/relatorios.php'; relRotear($pdo, $action, $usuarioLogado ?? ($_SESSION['usuario'] ?? '')); exit; } // RELATORIOS_V1
 if ($action === 'get_smtp' || $action === 'set_smtp' || $action === 'testar_smtp') {
     heExigeGestor();
@@ -983,8 +984,9 @@ if ($action === 'processar_fila_whatsapp' && $_SERVER['REQUEST_METHOD'] === 'POS
     exit;
 }
 // RETORNO DE DADOS GERAIS
+try { $pdo->exec("ALTER TABLE escala_dados ADD COLUMN IF NOT EXISTS observacao TEXT"); } catch (Exception $e) {} // SO_FERRAMENTAS_V1
 try {
-    $stmt = $pdo->query("SELECT nome_colaborador, data_escala, status, horas_total, arquivo_anexo, data_inicio, hora_inicio, data_fim, hora_fim FROM escala_dados ORDER BY data_inicio ASC, hora_inicio ASC");
+    $stmt = $pdo->query("SELECT nome_colaborador, data_escala, status, horas_total, arquivo_anexo, data_inicio, hora_inicio, data_fim, hora_fim, observacao FROM escala_dados ORDER BY data_inicio ASC, hora_inicio ASC");
     $dados = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         if (!isset($dados[$row['nome_colaborador']])) {
@@ -993,7 +995,7 @@ try {
         if (!isset($dados[$row['nome_colaborador']][$row['data_escala']])) {
             $dados[$row['nome_colaborador']][$row['data_escala']] = [
                 'status' => $row['status'],
-                'anexo' => $row['arquivo_anexo'],
+                'anexo' => $row['arquivo_anexo'], 'obs' => $row['observacao'] ?? null,
                 'fracoes' => []
             ];
         }

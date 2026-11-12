@@ -54,18 +54,19 @@ if ($logado && $pdo) {
         $pdo->exec("ALTER TABLE escala_dados ADD COLUMN IF NOT EXISTS hora_inicio VARCHAR(10)");
         $pdo->exec("ALTER TABLE escala_dados ADD COLUMN IF NOT EXISTS data_fim DATE");
         $pdo->exec("ALTER TABLE escala_dados ADD COLUMN IF NOT EXISTS hora_fim VARCHAR(10)");
+        $pdo->exec("ALTER TABLE escala_dados ADD COLUMN IF NOT EXISTS observacao TEXT"); // SO_FERRAMENTAS_V1
     } catch(Exception $e) {}
 
     $stmt = $pdo->query("SELECT * FROM funcionarios ORDER BY local_base ASC, localidade ASC, setor ASC, nome ASC");
     $funcionarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $stmtEscala = $pdo->query("SELECT nome_colaborador, data_escala, status, horas_total, arquivo_anexo, data_inicio, hora_inicio, data_fim, hora_fim FROM escala_dados ORDER BY data_inicio ASC, hora_inicio ASC");
+    $stmtEscala = $pdo->query("SELECT nome_colaborador, data_escala, status, horas_total, arquivo_anexo, data_inicio, hora_inicio, data_fim, hora_fim, observacao FROM escala_dados ORDER BY data_inicio ASC, hora_inicio ASC");
     while ($row = $stmtEscala->fetch(PDO::FETCH_ASSOC)) {
         if (!isset($dadosIniciaisBanco[$row['nome_colaborador']])) $dadosIniciaisBanco[$row['nome_colaborador']] = [];
         if (!isset($dadosIniciaisBanco[$row['nome_colaborador']][$row['data_escala']])) {
             $dadosIniciaisBanco[$row['nome_colaborador']][$row['data_escala']] = [
                 'status' => $row['status'],
-                'anexo' => $row['arquivo_anexo'],
+                'anexo' => $row['arquivo_anexo'], 'obs' => $row['observacao'] ?? null,
                 'fracoes' => []
             ];
         }
@@ -3675,6 +3676,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
 <script src="relatorios.js?v=nome1"></script>
 <script src="auditoria_export.js?v=3"></script>
 <script src="colab_acesso.js?v=2"></script>
+<script src="sobreaviso_ferramentas.js?v=1"></script>
 <script>/* SESSAO_INATIV_V1: volta ao login quando a tela fica parada; enquanto há uso, mantém a sessão viva */
 (function () {
   var logado = <?php echo !empty($_SESSION['usuario']) ? 'true' : 'false'; ?>, lim = <?php echo (int)$sessaoLimMin; ?> * 60000;
