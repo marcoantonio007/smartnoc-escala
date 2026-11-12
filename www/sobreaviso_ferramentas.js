@@ -108,6 +108,18 @@
     }
     return out.join('');
   }
+  // SO_ANO_MES_V1: escolhe primeiro o ano e depois o mês da folha
+  function anoMesFolha() {
+    var atual = folhaEmExibicao().split('-'), anoA = +atual[0], selA = el('so-folha-ano'), selM = el('so-folha-mes'), h = new Date().getFullYear(), a = [];
+    for (var y = Math.max(h, anoA) + 1; y >= Math.min(h, anoA) - 3; y--) a.push('<option value="' + y + '"' + (y === anoA ? ' selected' : '') + '>' + y + '</option>');
+    selA.innerHTML = a.join('');
+    var meses = function (sel) {
+      selM.innerHTML = MESES.map(function (n, i) { return '<option value="' + pad(i + 1) + '"' + (i + 1 === sel ? ' selected' : '') + '>' + n + ' (15/' + pad(i === 0 ? 12 : i) + ' a 14/' + pad(i + 1) + ')</option>'; }).join('');
+    };
+    meses(+atual[1]);
+    selA.onchange = function () { el('so-folha-msg').textContent = ''; };
+    selM.onchange = function () { el('so-folha-msg').textContent = ''; };
+  }
   function cardFolha() {
     var box = doc.querySelector('#config-modal .custom-scrollbar'); if (!box) return;
     var card = el('so-folha-card');
@@ -116,17 +128,18 @@
       card.className = 'bg-amber-50 p-4 rounded border border-amber-200 shrink-0'; card.style.display = 'none';
       card.innerHTML = '<h3 class="text-sm font-bold text-slate-700 mb-1">🔄 Atualizar sobreavisos da folha</h3>' +
         '<p class="text-[11px] text-slate-600 mb-3">Reaplica os períodos de sobreaviso atuais a todos os sobreavisos já lançados na folha escolhida, mantendo quem está marcado em cada dia na escala mensal. Sobreavisos pontuais (com horário próprio) não são alterados.</p>' +
-        '<div class="flex flex-wrap gap-2 items-end"><div><label class="block text-[10px] font-bold uppercase mb-1">Folha</label><select id="so-folha-sel" class="border rounded px-2 py-1.5 text-sm bg-white"></select></div>' +
+        '<div class="flex flex-wrap gap-2 items-end"><div><label class="block text-[10px] font-bold uppercase mb-1">Ano</label><select id="so-folha-ano" class="border rounded px-2 py-1.5 text-sm bg-white"></select></div>' +
+        '<div><label class="block text-[10px] font-bold uppercase mb-1">Mês da folha</label><select id="so-folha-mes" class="border rounded px-2 py-1.5 text-sm bg-white"></select></div>' +
         '<button type="button" id="so-folha-btn" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded text-sm font-bold disabled:opacity-50">Atualizar</button></div>' +
         '<div id="so-folha-msg" class="text-xs mt-2"></div>';
       var ref = box.querySelector('[data-cfgtab="sobreaviso"]');
       if (ref && ref.nextSibling) box.insertBefore(card, ref.nextSibling); else box.appendChild(card);
       el('so-folha-btn').onclick = atualizarFolha;
     }
-    el('so-folha-sel').innerHTML = opcoesFolha(); el('so-folha-msg').textContent = '';
+    anoMesFolha(); el('so-folha-msg').textContent = '';
   }
   async function atualizarFolha() {
-    var b = el('so-folha-btn'), msg = el('so-folha-msg'), folha = el('so-folha-sel').value, nomeF = el('so-folha-sel').selectedOptions[0].textContent;
+    var b = el('so-folha-btn'), msg = el('so-folha-msg'), folha = el('so-folha-ano').value + '-' + el('so-folha-mes').value, nomeF = el('so-folha-mes').selectedOptions[0].textContent.replace(' (', '/' + el('so-folha-ano').value + ' (');
     b.disabled = true; msg.className = 'text-xs mt-2 text-slate-500'; msg.textContent = 'Verificando…';
     try {
       var s = await api('so_folha_atualizar', { folha: folha, simular: 1 });
