@@ -2006,110 +2006,77 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
             exportarCSVMesAtual(startDateStr, endDateStr, nomeCompetencia, anoCompetencia);
         }
 
+        // IMPORT_SEM_2200_V1: o dia de sobreaviso é a data de início de cada linha do arquivo (qualquer horário);
+        // linhas que começam 00:00 logo após um dia já presente são a continuação dele (passagem da meia-noite).
         async function importarCSV(event) {
             const file = event.target.files[0]; if (!file) return;
             setProgress(0, "Lendo arquivo...");
+            const linhas = []; // { nome, data: 'AAAA-MM-DD', hora: 'HH:MM' }
+            const p2 = n => String(n).padStart(2, '0');
+            const dataISO = (v) => {
+                if (v instanceof Date && !isNaN(v)) return v.getUTCFullYear() + '-' + p2(v.getUTCMonth() + 1) + '-' + p2(v.getUTCDate());
+                let s = String(v || '').trim(); let m;
+                if ((m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/))) return m[3] + '-' + p2(m[2]) + '-' + p2(m[1]);
+                if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return m[1] + '-' + p2(m[2]) + '-' + p2(m[3]);
+                if ((m = s.match(/^(\d{4})(\d{2})(\d{2})$/))) return m[1] + '-' + m[2] + '-' + m[3];
+                return '';
+            };
+            const horaHM = (v) => {
+                if (v instanceof Date && !isNaN(v)) return p2(v.getUTCHours()) + ':' + p2(v.getUTCMinutes());
+                if (typeof v === 'number' && v >= 0 && v < 1) { const t = Math.round(v * 1440); return p2(Math.floor(t / 60)) + ':' + p2(t % 60); }
+                const m = String(v || '').trim().match(/^(\d{1,2}):(\d{2})/); return m ? p2(m[1]) + ':' + m[2] : '';
+            };
+            const add = (nome, data, hora) => { nome = String(nome || '').trim(); const d = dataISO(data); if (nome && d) linhas.push({ nome, data: d, hora: horaHM(hora) || '00:00' }); };
+            const ehBackup = (cab) => /Total_Horas_Calculadas|Total Horas/i.test(cab);
+            try {
+                if (file.name.toLowerCase().endsWith('.xlsx') || file.type.includes('spreadsheetml')) {
+                    const wb = new ExcelJS.Workbook(); await wb.xlsx.load(await file.arrayBuffer());
+                    const ws = wb.worksheets[0]; let backup = false;
+                    const val = (row, i) => { const c = row.getCell(i); return (c.value instanceof Date) ? c.value : (c.type === ExcelJS.ValueType.Number ? c.value : (c.text || (c.value != null ? String(c.value) : ''))); };
+                    ws.eachRow((row, n) => {
+                        if (n === 1) { let cab = ''; row.eachCell(c => { cab += ' ' + (c.text || ''); }); backup = ehBackup(cab); return; }
+                        if (backup) add(val(row, 1), val(row, 4), val(row, 5)); else add(val(row, 1), val(row, 5), val(row, 6));
+                    });
+                } else {
+                    const txt = await file.text(); const rows = txt.replace(/^\uFEFF/, '').split(/\r?\n/);
+                    const backup = ehBackup(rows[0] || '');
+                    for (let i = 1; i < rows.length; i++) {
+                        if (!rows[i].trim()) continue; const c = rows[i].split(';');
+                        if (backup) add(c[0], c[3], c[4]); else add(c[0], c[4], c[5]);
+                    }
+                }
+            } catch (e) { alert('Não foi possível ler o arquivo: ' + e.message); document.getElementById('file-import-escala').value = ''; liberarInterface(); return; }
 
+            // nome do arquivo => colaborador (nome resumido igual, nome completo igual sem acentos, ou nome do arquivo começando pelo nome resumido)
+            const nrm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+            const acharColab = (raw) => { const n = nrm(raw);
+                return tecnicosDB.find(t => nrm(t.nome) === n) || tecnicosDB.find(t => t.nome_completo && nrm(t.nome_completo) === n) || tecnicosDB.find(t => n.startsWith(nrm(t.nome) + ' ')) || null; };
+            const naoAchados = new Set(), porNome = {};
+            linhas.forEach(l => { const t = acharColab(l.nome); if (!t) { naoAchados.add(l.nome); return; } (porNome[t.nome] = porNome[t.nome] || []).push(l); });
+            const diaAnt = d => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() - 1); return x.toISOString().slice(0, 10); };
             const mapParaSalvar = new Map();
-
-            const processExcelJS = async (file) => {
-                const arrayBuffer = await file.arrayBuffer();
-                const workbook = new ExcelJS.Workbook();
-                await workbook.xlsx.load(arrayBuffer);
-                const worksheet = workbook.worksheets[0];
-                let isBackup = false;
-
-                worksheet.eachRow((row, rowNumber) => {
-                    if (rowNumber === 1) {
-                        row.eachCell((cell) => {
-                            let val = cell.text || (cell.value ? cell.value.toString() : '');
-                            if (val.includes("Total_Horas_Calculadas") || val.includes("Total Horas")) isBackup = true;
-                        });
-                        return;
-                    }
-
-                    const nomeRaw = row.getCell(1).text || (row.getCell(1).value ? row.getCell(1).value.toString() : '');
-                    let dtInicioRaw = row.getCell(4).text || (row.getCell(4).value ? row.getCell(4).value.toString() : '');
-                    let horaInicioRaw = row.getCell(5).text || (row.getCell(5).value ? row.getCell(5).value.toString() : '');
-
-                    if (!nomeRaw) return;
-
-                    if (isBackup) {
-                        if (!horaInicioRaw || horaInicioRaw.trim().substring(0,5) !== "22:00") return;
-                        dtInicioRaw = dtInicioRaw.trim().replace(/\//g, '-');
-                        if (dtInicioRaw.length === 10 && dtInicioRaw.indexOf('-') === 2) {
-                            dtInicioRaw = `${dtInicioRaw.substring(6,10)}-${dtInicioRaw.substring(3,5)}-${dtInicioRaw.substring(0,2)}`;
-                        } else if (row.getCell(4).type === ExcelJS.ValueType.Date) {
-                            const dtObj = row.getCell(4).value;
-                            dtInicioRaw = dtObj.toISOString().split('T')[0];
-                        }
-                    } else {
-                        horaInicioRaw = row.getCell(6).text || '';
-                        if (!horaInicioRaw || horaInicioRaw.trim().substring(0,5) !== "22:00") return;
-                        dtInicioRaw = row.getCell(5).text || '';
-                        if(dtInicioRaw.length === 8 && !dtInicioRaw.includes('-')) {
-                            dtInicioRaw = `${dtInicioRaw.substring(0,4)}-${dtInicioRaw.substring(4,6)}-${dtInicioRaw.substring(6,8)}`;
-                        }
-                    }
-
-                    if (nomeRaw && dtInicioRaw && dtInicioRaw.includes('-')) {
-                        let tMatched = tecnicosDB.find(t => t.nome === nomeRaw || nomeRaw.startsWith(t.nome));
-                        let nomeSalvar = tMatched ? tMatched.nome : nomeRaw;
-                        let key = nomeSalvar + '_' + dtInicioRaw;
-                        mapParaSalvar.set(key, { nome: nomeSalvar, data: dtInicioRaw, status: 'plantao', usuario_logado: currentLogin });
-                    }
+            Object.keys(porNome).forEach(nome => {
+                const ls = porNome[nome], datas = new Set(ls.map(l => l.data));
+                ls.forEach(l => {
+                    if (l.hora === '00:00' && datas.has(diaAnt(l.data))) return; // continuação do dia anterior (passou da meia-noite)
+                    mapParaSalvar.set(nome + '_' + l.data, { nome, data: l.data, status: 'plantao', usuario_logado: currentLogin });
                 });
-            };
-
-            const processLegacyCSV = (file) => {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const rows = e.target.result.split("\n");
-                        let isBackup = false; if(rows[0] && rows[0].includes("Total_Horas_Calculadas")) isBackup = true;
-                        for (let i = 1; i < rows.length; i++) {
-                            if(rows[i].trim() === '') continue;
-                            const cols = rows[i].split(";");
-                            if (cols.length >= 4) {
-                                const nomeRaw = cols[0].trim();
-                                let dtInicioRaw = ""; let horaInicioRaw = "";
-                                if (isBackup) {
-                                    horaInicioRaw = cols[4] ? cols[4].trim() : "";
-                                    if (horaInicioRaw.substring(0,5) !== "22:00") continue;
-                                    dtInicioRaw = cols[3] ? cols[3].trim().replace(/\//g, '-') : "";
-                                    if (dtInicioRaw.length === 10 && dtInicioRaw.indexOf('-') === 2) {
-                                        dtInicioRaw = `${dtInicioRaw.substring(6,10)}-${dtInicioRaw.substring(3,5)}-${dtInicioRaw.substring(0,2)}`;
-                                    }
-                                } else {
-                                    horaInicioRaw = cols[5] ? cols[5].trim() : "";
-                                    if (horaInicioRaw.substring(0,5) !== "22:00") continue;
-                                    dtInicioRaw = cols[4] ? cols[4].trim() : "";
-                                    if(dtInicioRaw.length === 8 && !dtInicioRaw.includes('-')) {
-                                        dtInicioRaw = `${dtInicioRaw.substring(0,4)}-${dtInicioRaw.substring(4,6)}-${dtInicioRaw.substring(6,8)}`;
-                                    }
-                                }
-                                if(nomeRaw && dtInicioRaw && dtInicioRaw.includes('-')) {
-                                    let tMatched = tecnicosDB.find(t => t.nome === nomeRaw || nomeRaw.startsWith(t.nome));
-                                    let nomeSalvar = tMatched ? tMatched.nome : nomeRaw;
-                                    mapParaSalvar.set(nomeSalvar + '_' + dtInicioRaw, { nome: nomeSalvar, data: dtInicioRaw, status: 'plantao', usuario_logado: currentLogin });
-                                }
-                            }
-                        }
-                        resolve();
-                    };
-                    reader.readAsText(file);
-                });
-            };
-
-            if (file.name.toLowerCase().endsWith('.xlsx') || file.type.includes('spreadsheetml')) {
-                await processExcelJS(file);
-            } else {
-                await processLegacyCSV(file);
-            }
-
-            const itensParaSalvar = Array.from(mapParaSalvar.values());
+            });
+            const itensParaSalvar = Array.from(mapParaSalvar.values()).sort((a, b) => a.data < b.data ? -1 : a.data > b.data ? 1 : a.nome.localeCompare(b.nome));
             const total = itensParaSalvar.length;
-            if(total === 0) { alert("Nenhum dado válido com horário de início 22:00 encontrado."); liberarInterface(); return; }
+            document.getElementById('file-import-escala').value = "";
+            if (total === 0) {
+                alert('Nenhum dia de sobreaviso encontrado no arquivo.' + (naoAchados.size ? '\n\nColaboradores não encontrados no cadastro: ' + Array.from(naoAchados).join(', ') : ''));
+                liberarInterface(); return;
+            }
+            const jaTem = itensParaSalvar.filter(it => plantaoMensalDados[it.nome] && plantaoMensalDados[it.nome][it.data]).length;
+            const fmt = d => d.split('-').reverse().join('/');
+            let msg = 'IMPORTAR ESCALA\n\n' + total + ' dia(s) de sobreaviso para ' + new Set(itensParaSalvar.map(i => i.nome)).size + ' colaborador(es), de ' + fmt(itensParaSalvar[0].data) + ' a ' + fmt(itensParaSalvar[total - 1].data) + '.\n' +
+                'Os horários serão os dos Períodos de Sobreaviso atuais (Configurações → Sobreaviso).';
+            if (jaTem) msg += '\n\n⚠️ ' + jaTem + ' desses dias já têm lançamento e serão substituídos.';
+            if (naoAchados.size) msg += '\n\nNão encontrados no cadastro (serão ignorados): ' + Array.from(naoAchados).slice(0, 15).join(', ') + (naoAchados.size > 15 ? '…' : '');
+            if (!confirm(msg + '\n\nConfirma a importação?')) { liberarInterface(); return; }
+
             setProgress(0, `Salvando ${total} registros no banco...`);
             const loteSize = 10; let processados = 0;
             for (let i = 0; i < total; i += loteSize) {
@@ -2118,7 +2085,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
                 rsImp.forEach((r, k) => { if (r && r.regra === 'limite_24h') (window.__bloqImp = window.__bloqImp || []).push(lote[k].nome + ' ' + String(lote[k].data).split('-').reverse().join('/')); });
                 processados += lote.length; setProgress((processados / total) * 100);
             }
-            document.getElementById('file-import-escala').value = ""; await recarregarDadosBanco();
+            await recarregarDadosBanco();
             if (window.__bloqImp && window.__bloqImp.length) { alert('LIMITE DE 24H DE SOBREAVISO (CLT)\n\nEstes dias não foram importados porque deixariam o colaborador mais de 24h seguidas de sobreaviso:\n\n' + window.__bloqImp.join(', ')); window.__bloqImp = []; }
         }
 
