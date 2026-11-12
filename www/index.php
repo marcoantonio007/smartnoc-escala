@@ -97,7 +97,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
     <meta charset="UTF-8">
     <script>/* URL_LIMPA_V1: a barra de endereço mostra só o domínio (sem index.php e sem ?logout, ?sair_inativo...) */ (function () { try { var p = location.pathname.replace(/index\.php$/i, ""); if (p !== location.pathname || location.search) history.replaceState(null, "", p + location.hash); } catch (e) {} })();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Sobreaviso AVANTIA</title>
+    <title>Plantão Técnico · Escala de Sobreaviso</title>
     <script src="https://cdn.tailwindcss.com">
     function showToast(msg, type = 'success') {
         const container = document.getElementById('toast-container');
@@ -373,13 +373,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
     <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
     <?php if (!$logado): ?>
-    <div class="fixed inset-0 bg-blue-900/90 z-[100] flex items-center justify-center p-4">
-        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm"><h2 class="text-xl font-black text-center mb-4">LOGIN</h2>
-            <form method="POST"><input type="hidden" name="acao" value="login"><input type="text" name="usuario" placeholder="Usuário" class="w-full border mb-3 p-2 rounded"><input type="password" name="senha" placeholder="Senha" class="w-full border mb-3 p-2 rounded"><button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded">Entrar</button></form>
-            <?php if(!empty($msgErro)) echo "<div class='text-red-500 text-xs mt-2'>$msgErro</div>"; ?>
-            <?php include __DIR__ . '/senha_reset_ui.php'; // SENHA_RESET_V1 ?>
-        </div>
-    </div>
+    <?php include __DIR__ . '/login_tela.php'; // LOGIN_TELA_V1 ?>
     <?php endif; ?>
 
     <!-- MODAL DE CONFIGURAÇÕES -->
