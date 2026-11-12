@@ -299,9 +299,11 @@ if ($action === 'trocar_plantao' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if ($action === 'get_auditoria') {
+    if (($_SESSION['perfil'] ?? '') !== 'mestre') { echo json_encode(['sucesso' => false, 'erro' => 'Acesso restrito ao perfil Mestre.']); exit; } // AUDITORIA_MESTRE_V1
     $pagina = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
-    $limite = 15;
-    $offset = ($pagina - 1) * $limite;
+    $exportar = !empty($_GET['todos']); // AUDITORIA_EXPORT_V1
+    $limite = $exportar ? 20000 : 15;
+    $offset = $exportar ? 0 : ($pagina - 1) * $limite;
 
     $where = ["1=1"];
     $params = [];
@@ -338,6 +340,7 @@ if ($action === 'get_auditoria') {
         $stmt = $pdo->prepare("SELECT * FROM trilha_auditoria WHERE $whereSql ORDER BY data_hora DESC LIMIT $limite OFFSET $offset");
         $stmt->execute($params);
         $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($exportar) { try { registrarAuditoria($pdo, $usuarioLogado, 'AUDITORIA', 'Exportou a trilha de auditoria (' . count($logs) . ' registro(s), ' . strtoupper(preg_replace('/[^a-z]/i', '', $_GET['exp'] ?? '')) . ')'); } catch (Exception $e) {} }
 
         $formattedLogs = array_map(function($l) {
             return [
@@ -361,6 +364,7 @@ if ($action === 'get_auditoria') {
 }
 
 if ($action === 'get_auditoria_sugestoes') {
+    if (($_SESSION['perfil'] ?? '') !== 'mestre') { echo json_encode(['sucesso' => false, 'erro' => 'Acesso restrito ao perfil Mestre.']); exit; } // AUDITORIA_MESTRE_V1
     $campo = $_GET['campo'] ?? '';
     $termo = $_GET['termo'] ?? '';
     if ($campo !== 'usuario' && $campo !== 'acao') { echo json_encode(['sucesso' => true, 'dados' => []]); exit; }

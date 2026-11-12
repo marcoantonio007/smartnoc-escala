@@ -649,6 +649,8 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
                 <div class="flex items-end gap-1">
                     <button onclick="mudarPaginaAuditoria(1)" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs shadow flex items-center justify-center gap-1"><i data-lucide="search" class="w-3 h-3"></i> Filtrar</button>
                     <button onclick="limparFiltrosAuditoria()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-2 rounded text-xs font-bold" title="Limpar Filtros"><i data-lucide="rotate-ccw" class="w-3 h-3"></i></button>
+                    <button onclick="exportarAuditoria('xlsx', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-2 rounded text-xs font-bold shadow flex items-center gap-1" title="Exportar registros filtrados em Excel (XLSX)"><i data-lucide="file-spreadsheet" class="w-3 h-3"></i> XLSX</button>
+                    <button onclick="exportarAuditoria('pdf', this)" class="bg-red-600 hover:bg-red-700 text-white py-1 px-2 rounded text-xs font-bold shadow flex items-center gap-1" title="Exportar registros filtrados em PDF"><i data-lucide="file-text" class="w-3 h-3"></i> PDF</button>
                 </div>
             </div>
 
@@ -843,7 +845,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
                     <button onclick="menuRelatorio(event, 'horas')" class="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors shadow-sm" title="Relatório Sobreaviso (PDF ou Word)"><i data-lucide="file-bar-chart" class="w-4 h-4"></i></button>
                     <button onclick="menuRelatorio(event, 'vr')" class="p-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded transition-colors shadow-sm" title="Formulário VR Extra (PDF ou Word)"><i data-lucide="ticket" class="w-4 h-4"></i></button>
                     <button id="btn-gestao" onclick="switchView('gestao')" class="p-1.5 bg-amber-500 hover:bg-amber-400 text-white rounded transition-colors shadow-sm" title="Dashboard Gerencial (sobreaviso, hora extra e tickets)"><i data-lucide="layout-dashboard" class="w-4 h-4"></i></button>
-                    <button onclick="abrirAuditoria()" class="p-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded transition-colors shadow-sm" title="Trilha de Auditoria"><i data-lucide="shield-alert" class="w-4 h-4"></i></button>
+                    <?php if ($perfilLogado === 'mestre'): ?><button onclick="abrirAuditoria()" class="p-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded transition-colors shadow-sm" title="Trilha de Auditoria"><i data-lucide="shield-alert" class="w-4 h-4"></i></button><?php endif; ?>
                 </div>
                 <div class="w-px h-5 bg-blue-800 mx-1"></div>
                 <?php endif; ?>
@@ -883,7 +885,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
                 <button onclick="exportarCSV(); toggleMobileMenu();" class="flex items-center gap-2 p-2 bg-blue-800 hover:bg-blue-700 text-white rounded text-xs font-bold"><i data-lucide="download" class="w-4 h-4"></i> Exportar Mês</button>
                 <button onclick="gerarRelatorioPDF(); toggleMobileMenu();" class="flex items-center justify-center gap-2 p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold"><i data-lucide="file-bar-chart" class="w-4 h-4"></i> Relatório PDF</button>
                 <button onclick="switchView('gestao'); toggleMobileMenu();" class="flex items-center justify-center gap-2 p-2 bg-amber-500 hover:bg-amber-400 text-white rounded text-xs font-bold"><i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Gerencial</button>
-                <button onclick="abrirAuditoria(); toggleMobileMenu();" class="col-span-2 flex items-center justify-center gap-2 p-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded text-xs font-bold"><i data-lucide="shield-alert" class="w-4 h-4"></i> Ver Auditoria</button>
+                <?php if ($perfilLogado === 'mestre'): ?><button onclick="abrirAuditoria(); toggleMobileMenu();" class="col-span-2 flex items-center justify-center gap-2 p-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded text-xs font-bold"><i data-lucide="shield-alert" class="w-4 h-4"></i> Ver Auditoria</button><?php endif; ?>
                 <?php if ($perfilLogado === 'mestre'): ?><button onclick="abrirConfiguracoes(); toggleMobileMenu();" class="col-span-2 flex items-center justify-center gap-2 p-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs font-bold"><i data-lucide="settings" class="w-4 h-4"></i> Configurações</button><?php endif; ?>
             </div>
             <?php endif; ?>
@@ -3670,6 +3672,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
 </script>
 <script src="gestao.js?v=rel2"></script>
 <script src="relatorios.js?v=nome1"></script>
+<script src="auditoria_export.js?v=1"></script>
 <script>/* SESSAO_INATIV_V1: volta ao login quando a tela fica parada; enquanto há uso, mantém a sessão viva */
 (function () {
   var logado = <?php echo !empty($_SESSION['usuario']) ? 'true' : 'false'; ?>, lim = <?php echo (int)$sessaoLimMin; ?> * 60000;
