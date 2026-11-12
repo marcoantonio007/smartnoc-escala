@@ -5,6 +5,8 @@ require_once 'conexao.php';
 require_once __DIR__ . '/sessao_inativ.php'; // SESSAO_INATIV_V1
 require_once __DIR__ . '/hora_extra.php'; // HE_PATCH_V1
 if ($pdo) { try { heGarantirTabelas($pdo); } catch (Exception $e) {} }
+require_once __DIR__ . '/email_colab.php'; // EMAIL_COLAB_V1
+if ($pdo && isset($_SESSION['usuario'])) { try { escEmailGarantir($pdo); } catch (Exception $e) {} }
 if ($pdo && isset($_SESSION['usuario'])) { try { escRecalcularMunicipaisSeMudou($pdo); } catch (Exception $e) { error_log('escala: recálculo feriado municipal: ' . $e->getMessage()); } } // FER_MUNICIPAL_V2
 
 header('Content-Type: application/json; charset=utf-8');
@@ -647,6 +649,8 @@ if ($action === 'salvar_funcionario' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         for ($t = 9; $okCpf && $t < 11; $t++) { $s = 0; for ($i = 0; $i < $t; $i++) $s += (int)$cpf[$i] * (($t + 1) - $i); if ((int)$cpf[$t] !== ((10 * $s) % 11) % 10) $okCpf = false; }
         if (!$okCpf) { echo json_encode(['sucesso' => false, 'erro' => 'CPF inválido.']); exit; }
     }
+    $emailColab = null; // EMAIL_COLAB_V1: null = não veio na tela (mantém o atual); '' = sem e-mail
+    if (isset($_POST['email'])) { $emailColab = escEmailValidar($_POST['email']); if ($emailColab === null) { echo json_encode(['sucesso' => false, 'erro' => 'E-mail inválido.']); exit; } }
     try {
         $pdo->exec("ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS data_admissao DATE, ADD COLUMN IF NOT EXISTS cpf VARCHAR(11)");
         if (!empty($id)) {
@@ -658,6 +662,7 @@ if ($action === 'salvar_funcionario' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute(['n' => $nome, 'nc' => $_POST['nome_completo'] ?? '', 'b' => $_POST['local_base'] ?? '', 'l' => $_POST['localidade'] ?? '', 's' => $_POST['setor'] ?? '', 'sg' => $_POST['sigla'] ?? '', 'sup' => $_POST['supervisor'] ?? '', 't' => $_POST['telefone'] ?? '', 'an' => $_POST['aniversario'] ?? '', 'ad' => $adm, 'cpf' => $cpf]);
             registrarAuditoria($pdo, $usuarioLogado, 'CRIAR COLABORADOR', "Cadastrou novo colaborador: $nome");
         }
+        if ($emailColab !== null) escEmailSalvar($pdo, $nome, $emailColab); // EMAIL_COLAB_V1
                 // --- INÍCIO SALVAR VÍNCULOS WHATSAPP ---
         $func_id = !empty($id) ? $id : $pdo->query("SELECT id FROM funcionarios WHERE nome = " . $pdo->quote($_POST['nome'] ?? '') . " ORDER BY id DESC LIMIT 1")->fetchColumn();
         $grupos_wpp = isset($_POST['grupos_wpp']) ? json_decode($_POST['grupos_wpp'], true) : [];
