@@ -435,6 +435,7 @@
     el('gestao-ant').onclick = function () { gestaoRef = new Date(gestaoRef.getFullYear(), gestaoRef.getMonth() - 1, 1); renderGestao(); };
     el('gestao-prox').onclick = function () { gestaoRef = new Date(gestaoRef.getFullYear(), gestaoRef.getMonth() + 1, 1); renderGestao(); };
     el('gestao-setor').onchange = renderGestao;
+    if (typeof root.dashExportInstalar === 'function') root.dashExportInstalar(); // DASH_PDF_V1
   }
   function tecnicosVisiveis() {
     var lista = gTecnicos();
@@ -543,6 +544,7 @@
 
     var r = calcularGestao({ plantao: gPlantao(), tecnicos: tecs, extras: horasExtrasDB, ini: comp.ini, fim: comp.fim, setor: sel.value });
     var t = r.totais, L = r.linhas;
+    root.__dashSnap = { comp: comp, setor: sel.value, r: r, nomeFolha: nomes[comp.mesFim0] + '/' + comp.anoFim }; // DASH_PDF_V1
     var porSob = L.filter(function (l) { return l.horasLiquidas > 0; }).sort(function (a, b) { return b.horasLiquidas - a.horasLiquidas; })
       .map(function (l) { return { nome: l.nome, nomeCompleto: l.nomeCompleto, v: l.horasLiquidas }; });
     var porHE = L.filter(function (l) { return l.heMin > 0; }).sort(function (a, b) { return b.heMin - a.heMin; })

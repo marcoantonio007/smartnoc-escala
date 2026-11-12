@@ -85,5 +85,34 @@ function soRotear($pdo, $action, $usuario) {
         if (function_exists('registrarAuditoria')) registrarAuditoria($pdo, $usuario, 'SOBREAVISO PONTUAL', "Lançou sobreaviso pontual de {$nome} em " . date('d/m/Y', strtotime($d)) . " das {$hi} às {$hf}" . ($b > 1440 ? ' (+1 dia)' : '') . ' — ' . sprintf('%dh%02d', intdiv($dur, 60), $dur % 60) . ($obs !== '' ? ' · Obs.: ' . $obs : ''));
         $resp(['sucesso' => true]);
     }
+    if ($action === 'so_dash_email') { // DASH_PDF_V1: envia o PDF do Dashboard Gerencial por e-mail
+        require_once __DIR__ . '/smtp_mail.php';
+        $cfg = smtpConfigLer($pdo);
+        if (!smtpConfigurado($cfg)) $resp(['sucesso' => false, 'erro' => 'Configure o e-mail (SMTP) em Configurações → E-mail.']);
+        $para = array_values(array_unique(array_filter(array_map('trim', (array)($in['para'] ?? [])))));
+        if (!$para || count($para) > 20) $resp(['sucesso' => false, 'erro' => 'Informe de 1 a 20 e-mails.']);
+        foreach ($para as $e) if (!filter_var($e, FILTER_VALIDATE_EMAIL)) $resp(['sucesso' => false, 'erro' => 'E-mail inválido: ' . $e]);
+        $pdf = base64_decode((string)($in['pdf'] ?? ''), true);
+        if ($pdf === false || substr($pdf, 0, 5) !== '%PDF-' || strlen($pdf) > 8 * 1024 * 1024) $resp(['sucesso' => false, 'erro' => 'PDF inválido.']);
+        $tit = mb_substr(trim((string)($in['titulo'] ?? '')), 0, 60);
+        $assunto = mb_substr(trim((string)($in['assunto'] ?? '')), 0, 150); if ($assunto === '') $assunto = 'Dashboard Gerencial — ' . $tit;
+        $arq = preg_replace('/[^A-Za-z0-9_.-]+/', '_', (string)($in['arquivo'] ?? 'Dashboard.pdf')); if (!preg_match('/\.pdf$/i', $arq)) $arq .= '.pdf';
+        $msg = mb_substr(trim((string)($in['mensagem'] ?? '')), 0, 2000);
+        $h = function ($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); };
+        $html = '<div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;max-width:560px">' .
+            '<div style="background:#1e3a8a;color:#fff;padding:12px 18px;font-weight:bold;border-radius:8px 8px 0 0">Plantão Técnico — Dashboard Gerencial</div>' .
+            '<div style="border:1px solid #e5e7eb;border-top:0;padding:18px;border-radius:0 0 8px 8px">' .
+            ($msg !== '' ? '<p style="white-space:pre-line">' . $h($msg) . '</p>' : '') .
+            '<p>Segue em anexo o Dashboard Gerencial da folha <b>' . $h($tit) . '</b> (sobreaviso, hora extra e tickets extras).</p>' .
+            '<p style="font-size:12px;color:#6b7280">Enviado por ' . $h($usuario) . ' em ' . date('d/m/Y H:i') . '.</p></div></div>';
+        $ok = 0; $falhas = [];
+        foreach ($para as $e) {
+            $r = smtpEnviar($cfg, $e, $assunto, $html, ($msg !== '' ? $msg . "\n\n" : '') . "Segue em anexo o Dashboard Gerencial da folha $tit.", [['nome' => $arq, 'tipo' => 'application/pdf', 'dados' => $pdf]]);
+            if ($r['ok']) $ok++; else { $falhas[] = $e; error_log('escala: e-mail do dashboard para ' . $e . ': ' . $r['erro']); }
+        }
+        if (!$ok) $resp(['sucesso' => false, 'erro' => 'Não foi possível enviar o e-mail. Verifique a configuração do SMTP.']);
+        if (function_exists('registrarAuditoria')) registrarAuditoria($pdo, $usuario, 'RELATÓRIOS', 'Enviou o Dashboard Gerencial da folha ' . $tit . ' por e-mail para ' . implode(', ', array_diff($para, $falhas)));
+        $resp(['sucesso' => true, 'enviados' => $ok, 'falhas' => $falhas]);
+    }
     $resp(['sucesso' => false, 'erro' => 'Ação inválida.']);
 }
