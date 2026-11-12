@@ -101,8 +101,9 @@ function soRotear($pdo, $action, $usuario) {
         $para = array_values(array_unique(array_filter(array_map('trim', (array)($in['para'] ?? [])))));
         if (!$para || count($para) > 20) $resp(['sucesso' => false, 'erro' => 'Informe de 1 a 20 e-mails.']);
         foreach ($para as $e) if (!filter_var($e, FILTER_VALIDATE_EMAIL)) $resp(['sucesso' => false, 'erro' => 'E-mail inválido: ' . $e]);
-        $pdf = base64_decode((string)($in['pdf'] ?? ''), true);
-        if ($pdf === false || substr($pdf, 0, 5) !== '%PDF-' || strlen($pdf) > 8 * 1024 * 1024) $resp(['sucesso' => false, 'erro' => 'PDF inválido.']);
+        $temResumo = is_array($in['resumo'] ?? null); // DASH_CORPO_V1
+        $pdf = $temResumo ? null : base64_decode((string)($in['pdf'] ?? ''), true);
+        if (!$temResumo && ($pdf === false || substr($pdf, 0, 5) !== '%PDF-' || strlen($pdf) > 8 * 1024 * 1024)) $resp(['sucesso' => false, 'erro' => 'PDF inválido.']);
         $tit = mb_substr(trim((string)($in['titulo'] ?? '')), 0, 60);
         $assunto = mb_substr(trim((string)($in['assunto'] ?? '')), 0, 150); if ($assunto === '') $assunto = 'Dashboard Gerencial — ' . $tit;
         $arq = preg_replace('/[^A-Za-z0-9_.-]+/', '_', (string)($in['arquivo'] ?? 'Dashboard.pdf')); if (!preg_match('/\.pdf$/i', $arq)) $arq .= '.pdf';
@@ -114,9 +115,10 @@ function soRotear($pdo, $action, $usuario) {
             ($msg !== '' ? '<p style="white-space:pre-line">' . $h($msg) . '</p>' : '') .
             '<p>Segue em anexo o Dashboard Gerencial da folha <b>' . $h($tit) . '</b> (sobreaviso, hora extra e tickets extras).</p>' .
             '<p style="font-size:12px;color:#6b7280">Enviado por ' . $h($usuario) . ' em ' . date('d/m/Y H:i') . '.</p></div></div>';
+        if ($temResumo) $html = soDashHtml($in['resumo'], $msg, $usuario);
         $ok = 0; $falhas = [];
         foreach ($para as $e) {
-            $r = smtpEnviar($cfg, $e, $assunto, $html, ($msg !== '' ? $msg . "\n\n" : '') . "Segue em anexo o Dashboard Gerencial da folha $tit.", [['nome' => $arq, 'tipo' => 'application/pdf', 'dados' => $pdf]]);
+            $r = smtpEnviar($cfg, $e, $assunto, $html, ($msg !== '' ? $msg . "\n\n" : '') . ($temResumo ? "Resumo do Dashboard Gerencial da folha $tit. Abra este e-mail em um leitor que exiba HTML para ver as tabelas." : "Segue em anexo o Dashboard Gerencial da folha $tit."), ($pdf ? [['nome' => $arq, 'tipo' => 'application/pdf', 'dados' => $pdf]] : []));
             if ($r['ok']) $ok++; else { $falhas[] = $e; error_log('escala: e-mail do dashboard para ' . $e . ': ' . $r['erro']); }
         }
         if (!$ok) $resp(['sucesso' => false, 'erro' => 'Não foi possível enviar o e-mail. Verifique a configuração do SMTP.']);
@@ -124,4 +126,52 @@ function soRotear($pdo, $action, $usuario) {
         $resp(['sucesso' => true, 'enviados' => $ok, 'falhas' => $falhas]);
     }
     $resp(['sucesso' => false, 'erro' => 'Ação inválida.']);
+}
+
+// DASH_CORPO_V1: HTML do Dashboard Gerencial para o corpo do e-mail (tabelas com estilo inline, compatível com Outlook/Gmail)
+function soDashHtml($r, $msg, $usuario) {
+    $h = function ($s) { return htmlspecialchars(mb_substr((string)$s, 0, 300), ENT_QUOTES, 'UTF-8'); };
+    $cor = function ($c) { return preg_match('/^#[0-9a-fA-F]{6}$/', (string)$c) ? $c : '#334155'; };
+    $lst = function ($k, $max = 500) use ($r) { return array_slice(is_array($r[$k] ?? null) ? $r[$k] : [], 0, $max); };
+    $td = 'padding:5px 8px;border-bottom:1px solid #e2e8f0;font-size:12px;'; $th = 'padding:6px 8px;font-size:11px;text-align:left;color:#fff;';
+    $tabela = function ($cab, $linhas, $corCab, $dir = [], $pe = null) use ($h, $td, $th) {
+        $o = '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;border:1px solid #e2e8f0;margin:0 0 18px">';
+        $o .= '<tr style="background:' . $corCab . '">'; foreach ($cab as $i => $c) $o .= '<th style="' . $th . (in_array($i, $dir) ? 'text-align:right;' : '') . '">' . $h($c) . '</th>'; $o .= '</tr>';
+        foreach ($linhas as $n => $l) { $o .= '<tr style="background:' . ($n % 2 ? '#f8fafc' : '#ffffff') . '">'; foreach (array_values((array)$l) as $i => $c) $o .= '<td style="' . $td . (in_array($i, $dir) ? 'text-align:right;' : '') . ($i === 0 ? 'font-weight:bold;' : '') . '">' . $h($c) . '</td>'; $o .= '</tr>'; }
+        if ($pe) { $o .= '<tr style="background:#f1f5f9">'; foreach (array_values((array)$pe) as $i => $c) $o .= '<td style="' . $td . 'font-weight:bold;' . (in_array($i, $dir) ? 'text-align:right;' : '') . '">' . $h($c) . '</td>'; $o .= '</tr>'; }
+        return $o . '</table>';
+    };
+    $tit = function ($t) use ($h) { return '<div style="font-size:12px;font-weight:bold;color:#1e293b;text-transform:uppercase;margin:6px 0 8px">' . $h($t) . '</div>'; };
+    $o = '<div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;max-width:760px;margin:0 auto">';
+    $o .= '<div style="background:#1e3a8a;color:#fff;padding:14px 18px;border-radius:8px 8px 0 0"><div style="font-size:17px;font-weight:bold">DASHBOARD GERENCIAL</div>' .
+          '<div style="font-size:12px;opacity:.9;margin-top:3px">Folha ' . $h($r['titulo'] ?? '') . ' (' . $h($r['periodo'] ?? '') . ') · ' . (($r['setor'] ?? '') !== '' ? 'Setor ' . $h($r['setor']) : 'Todos os setores') . '</div></div>';
+    $o .= '<div style="border:1px solid #e2e8f0;border-top:0;padding:16px 18px;border-radius:0 0 8px 8px;background:#ffffff">';
+    if ($msg !== '') $o .= '<p style="white-space:pre-line;margin:0 0 14px">' . htmlspecialchars($msg, ENT_QUOTES, 'UTF-8') . '</p>';
+    $o .= '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 18px"><tr>';
+    foreach (array_slice($lst('kpis', 4), 0, 4) as $k) {
+        $k = array_values((array)$k);
+        $o .= '<td width="25%" style="padding:0 4px;vertical-align:top"><div style="border:1px solid #e2e8f0;border-left:4px solid ' . $cor($k[3] ?? '') . ';border-radius:6px;padding:8px 10px">' .
+              '<div style="font-size:10px;color:#64748b;font-weight:bold;text-transform:uppercase">' . $h($k[0] ?? '') . '</div>' .
+              '<div style="font-size:20px;font-weight:bold;color:#0f172a;margin:2px 0">' . $h($k[1] ?? '') . '</div>' .
+              '<div style="font-size:10px;color:#64748b">' . $h($k[2] ?? '') . '</div></div></td>';
+    }
+    $o .= '</tr></table>';
+    $he = $lst('heTop', 15);
+    $o .= $tit('Hora extra por colaborador');
+    if (!$he) $o .= '<p style="font-size:12px;color:#94a3b8;margin:0 0 18px">Sem hora extra no período.</p>';
+    else {
+        $o .= '<table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 18px">';
+        foreach ($he as $l) { $l = array_values((array)$l); $p = max(2, min(100, (int)($l[3] ?? 0)));
+            $o .= '<tr><td width="34%" style="font-size:12px;padding:3px 6px 3px 0;color:#334155">' . $h($l[0] ?? '') . '</td>' .
+                  '<td style="padding:3px 0"><table cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td width="' . $p . '%" style="background:#f59e0b;height:12px;font-size:1px;line-height:1px">&nbsp;</td><td style="background:#f1f5f9;font-size:1px;line-height:1px">&nbsp;</td></tr></table></td>' .
+                  '<td width="22%" style="font-size:12px;font-weight:bold;text-align:right;padding:3px 0 3px 8px">' . $h($l[1] ?? '') . ((int)($l[2] ?? 0) ? ' · ' . (int)$l[2] . ' 🎫' : '') . '</td></tr>'; }
+        $o .= '</table>';
+    }
+    $o .= $tit('Por colaborador');
+    $o .= $tabela(['Colaborador', 'Setor', 'Dias', 'Sobreav. bruto', 'Desc. HE', 'Sobreav. líquido', 'Hora extra', 'Períodos', 'Tickets'], $lst('linhas'), '#1e3a8a', [2, 3, 4, 5, 6, 7, 8], is_array($r['total'] ?? null) ? $r['total'] : null);
+    if ($s = $lst('setores', 100)) { $o .= $tit('Por setor'); $o .= $tabela(['Setor', 'Colaboradores', 'Sobreaviso líquido', 'Hora extra', '% da HE', 'Tickets'], $s, '#475569', [1, 2, 3, 4, 5]); }
+    if ($d = $lst('dias', 62)) { $o .= $tit('Hora extra por dia'); $o .= $tabela(['Dia', 'Hora extra', 'Colaboradores'], $d, '#b45309', [1]); }
+    $o .= '<p style="font-size:11px;color:#64748b;margin:4px 0 0">Sobreaviso líquido = sobreaviso bruto menos as horas extras que coincidem com a janela de sobreaviso. Ticket extra: um por dia do calendário em que a soma da hora extra supera 2h.</p>';
+    $o .= '<p style="font-size:11px;color:#94a3b8;margin:8px 0 0">Enviado por ' . $h($usuario) . ' em ' . date('d/m/Y H:i') . ' · Plantão Técnico</p></div></div>';
+    return $o;
 }

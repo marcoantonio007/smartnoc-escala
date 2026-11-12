@@ -3677,7 +3677,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
 <script src="auditoria_export.js?v=3"></script>
 <script src="colab_acesso.js?v=2"></script>
 <script src="sobreaviso_ferramentas.js?v=2"></script>
-<script src="dashboard_pdf.js?v=2"></script>
+<script src="dashboard_pdf.js?v=3"></script>
 <script>/* SESSAO_INATIV_V1: volta ao login quando a tela fica parada; enquanto há uso, mantém a sessão viva */
 (function () {
   var logado = <?php echo !empty($_SESSION['usuario']) ? 'true' : 'false'; ?>, lim = <?php echo (int)$sessaoLimMin; ?> * 60000;

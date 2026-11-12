@@ -100,6 +100,26 @@
     return { doc: d, nome: arq, titulo: titulo };
   }
 
+  // DASH_CORPO_V1: dados do dashboard para o corpo do e-mail (sem PDF anexo)
+  function resumoEmail() {
+    var s = snap(); if (!s) throw new Error('Abra o Dashboard para enviar.');
+    var r = s.r, t = r.totais, L = r.linhas.slice().sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR'); });
+    var he = L.filter(function (l) { return l.heMin > 0; }).sort(function (a, b) { return b.heMin - a.heMin; }), max = he.length ? he[0].heMin : 1;
+    var res = {
+      titulo: s.nomeFolha, periodo: dmy(s.comp.ini) + ' a ' + dmy(s.comp.fim), setor: s.setor || '', gerado: new Date().toLocaleString('pt-BR'),
+      kpis: [
+        ['Sobreaviso líquido', fH(t.horasLiquidas), 'Bruto ' + fH(t.horasBrutas) + (t.descontoMin ? ' − ' + fM(t.descontoMin) + ' de HE' : ''), '#2563eb'],
+        ['Hora extra', fM(t.heMin), t.comHE + ' colaborador(es)', '#f59e0b'],
+        ['Tickets extras', String(t.tickets), 'Dias com mais de 2h de HE', '#7c3aed'],
+        ['Em sobreaviso', String(L.filter(function (l) { return l.dias > 0; }).length), L.reduce(function (a, l) { return a + l.dias; }, 0) + ' dias de sobreaviso', '#059669']],
+      heTop: he.slice(0, 15).map(function (l) { return [l.nome, fM(l.heMin), l.tickets || 0, Math.max(2, Math.round(100 * l.heMin / max))]; }),
+      linhas: L.map(function (l) { return [l.nome, l.setor, l.dias || '—', l.horasBrutas ? fH(l.horasBrutas) : '—', l.descontoMin ? fM(l.descontoMin) : '—', l.horasLiquidas ? fH(l.horasLiquidas) : '—', l.heMin ? fM(l.heMin) : '—', l.periodos || '—', l.tickets || '—']; }),
+      total: ['TOTAL', '', String(L.reduce(function (a, l) { return a + l.dias; }, 0)), fH(t.horasBrutas), t.descontoMin ? fM(t.descontoMin) : '—', fH(t.horasLiquidas), fM(t.heMin), String(L.reduce(function (a, l) { return a + l.periodos; }, 0)), String(t.tickets)],
+      setores: r.porSetor.filter(function (x) { return x.heMin > 0 || x.horas > 0; }).map(function (x) { return [x.setor, x.colaboradores, fH(x.horas), x.heMin ? fM(x.heMin) : '—', t.heMin ? Math.round(100 * x.heMin / t.heMin) + '%' : '—', x.tickets || '—']; }),
+      dias: r.porDia.filter(function (x) { return x.heMin > 0; }).map(function (x) { return [dmy(x.data), fM(x.heMin), Object.keys(x.pessoas || {}).map(function (n) { return n + ' (' + fM(x.pessoas[n].min) + ')'; }).join(', ')]; })
+    };
+    return { titulo: s.nomeFolha, resumo: res };
+  }
   function baixar() { try { var g = gerarPdf(); g.doc.save(g.nome); } catch (e) { toast(e.message, 'error'); } }
 
   function modalEmail() {
@@ -111,7 +131,7 @@
       '<label class="block text-[10px] font-bold uppercase mb-1">Para (separe vários e-mails por vírgula)</label><textarea id="dm-para" rows="2" class="w-full border rounded px-2 py-1 text-sm" placeholder="gestor@empresa.com.br, outro@empresa.com.br"></textarea>' +
       '<label class="block text-[10px] font-bold uppercase mb-1 mt-2">Assunto</label><input id="dm-assunto" maxlength="150" class="w-full border rounded px-2 py-1 text-sm">' +
       '<label class="block text-[10px] font-bold uppercase mb-1 mt-2">Mensagem (opcional)</label><textarea id="dm-msg" rows="3" maxlength="2000" class="w-full border rounded px-2 py-1 text-sm"></textarea>' +
-      '<div class="text-[11px] text-slate-500 mt-2">O PDF do dashboard vai anexo.</div><div id="dm-erro" class="hidden text-red-600 text-xs mt-2"></div>' +
+      '<div class="text-[11px] text-slate-500 mt-2">O resumo do dashboard vai no corpo do e-mail.</div><div id="dm-erro" class="hidden text-red-600 text-xs mt-2"></div>' +
       '<div class="flex gap-2 pt-3"><button type="button" id="dm-cancelar" class="flex-1 bg-slate-200 py-1.5 rounded font-bold">Cancelar</button>' +
       '<button type="button" id="dm-enviar" class="flex-1 bg-blue-600 text-white py-1.5 rounded font-bold disabled:opacity-50">Enviar</button></div></div>';
     doc.body.appendChild(m);
@@ -128,9 +148,9 @@
       var r = await fetch('api_escala.php?action=so_meu_email', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       var me; try { me = await r.json(); } catch (e) { me = {}; }
       if (!me.sucesso || !me.email) { abrirEmailForm(); return; }
-      var g = gerarPdf(), b64 = g.doc.output('datauristring').split(',')[1];
+      var g = resumoEmail();
       var r2 = await fetch('api_escala.php?action=so_dash_email', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ para: [me.email], assunto: 'Dashboard Gerencial — ' + s.nomeFolha + (s.setor ? ' — ' + s.setor : ''), mensagem: '', titulo: g.titulo, arquivo: g.nome, pdf: b64 }) });
+        body: JSON.stringify({ para: [me.email], assunto: 'Dashboard Gerencial — ' + s.nomeFolha + (s.setor ? ' — ' + s.setor : ''), mensagem: '', titulo: g.titulo, resumo: g.resumo }) });
       var j; try { j = await r2.json(); } catch (e) { j = { sucesso: false, erro: 'Resposta inválida do servidor.' }; }
       if (j.sucesso) toast('Dashboard enviado para ' + me.email + '.'); else toast(j.erro || 'Falha ao enviar.', 'error');
     } catch (e) { toast(e.message, 'error'); }
@@ -153,9 +173,9 @@
     if (ruim.length) { err.textContent = 'E-mail inválido: ' + ruim.join(', '); err.classList.remove('hidden'); return; }
     b.disabled = true; b.textContent = 'Enviando…';
     try {
-      var g = gerarPdf(), b64 = g.doc.output('datauristring').split(',')[1];
+      var g = resumoEmail();
       var r = await fetch('api_escala.php?action=so_dash_email', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ para: para, assunto: el('dm-assunto').value, mensagem: el('dm-msg').value, titulo: g.titulo, arquivo: g.nome, pdf: b64 }) });
+        body: JSON.stringify({ para: para, assunto: el('dm-assunto').value, mensagem: el('dm-msg').value, titulo: g.titulo, resumo: g.resumo }) });
       var j; try { j = await r.json(); } catch (e) { j = { sucesso: false, erro: 'Resposta inválida do servidor.' }; }
       if (!j.sucesso) { err.textContent = j.erro || 'Falha ao enviar.'; err.classList.remove('hidden'); return; }
       try { root.localStorage.setItem('dash_email_para', para.join(', ')); } catch (e) {}
@@ -173,7 +193,7 @@
       b.innerHTML = '<i data-lucide="' + ic + '" class="w-3.5 h-3.5"></i> ' + txtB; b.onclick = fn; grupo.appendChild(b);
     };
     mk('dash-btn-pdf', 'bg-red-600 hover:bg-red-700', 'Baixar o dashboard em PDF', 'file-down', 'PDF', baixar);
-    mk('dash-btn-mail', 'bg-blue-600 hover:bg-blue-700', 'Enviar o dashboard em PDF para o seu e-mail cadastrado', 'mail', 'E-mail', abrirEmail);
+    mk('dash-btn-mail', 'bg-blue-600 hover:bg-blue-700', 'Enviar o resumo do dashboard para o seu e-mail cadastrado', 'mail', 'E-mail', abrirEmail);
     if (root.lucide && root.lucide.createIcons) try { root.lucide.createIcons(); } catch (e) {}
   };
 })(window);
