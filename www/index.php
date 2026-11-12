@@ -844,7 +844,6 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
                     <button onclick="menuRelatorio(event, 'horas')" class="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors shadow-sm" title="Relatório Sobreaviso (PDF ou Word)"><i data-lucide="file-bar-chart" class="w-4 h-4"></i></button>
                     <button onclick="menuRelatorio(event, 'vr')" class="p-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded transition-colors shadow-sm" title="Formulário VR Extra (PDF ou Word)"><i data-lucide="ticket" class="w-4 h-4"></i></button>
                     <button id="btn-gestao" onclick="switchView('gestao')" class="p-1.5 bg-amber-500 hover:bg-amber-400 text-white rounded transition-colors shadow-sm" title="Dashboard Gerencial (sobreaviso, hora extra e tickets)"><i data-lucide="layout-dashboard" class="w-4 h-4"></i></button>
-                    <?php if ($perfilLogado === 'mestre'): ?><button onclick="abrirAuditoria()" class="p-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded transition-colors shadow-sm" title="Trilha de Auditoria"><i data-lucide="shield-alert" class="w-4 h-4"></i></button><?php endif; ?>
                 </div>
                 <div class="w-px h-5 bg-blue-800 mx-1"></div>
                 <?php endif; ?>
@@ -858,6 +857,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
                 <div class="w-px h-5 bg-blue-800 mx-1"></div>
                 
                 <div class="flex items-center gap-1.5">
+                    <?php if ($perfilLogado === 'mestre'): ?><button onclick="abrirAuditoria()" class="p-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded transition-colors shadow-sm" title="Trilha de Auditoria"><i data-lucide="shield-alert" class="w-4 h-4"></i></button><?php endif; ?>
                     <?php if ($perfilLogado === 'mestre'): ?><button onclick="abrirConfiguracoes()" class="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors shadow-sm" title="Configurações e Administração"><i data-lucide="settings" class="w-4 h-4"></i></button><?php endif; ?>
                     <div class="px-2 py-1 bg-blue-900 border border-blue-700 rounded text-[9px] font-mono flex items-center gap-1 text-blue-300"><i data-lucide="user" class="w-3 h-3"></i> <span><?php echo htmlspecialchars($nomeLogado ?: $perfilLogado); ?></span></div>
                     <a href="?logout=1" class="p-1 ml-1 hover:bg-blue-800 rounded text-blue-300 hover:text-red-400 transition-colors" title="Sair do Sistema"><i data-lucide="power" class="w-4 h-4"></i></a>
