@@ -890,6 +890,7 @@
     { id: 'acessos', rot: 'Acessos', ic: '🔑' },
     { id: 'colab', rot: 'Colaboradores', ic: '👥' },
     { id: 'whatsapp', rot: 'WhatsApp', ic: '💬' },
+    { id: 'auditoria', rot: 'Auditoria', ic: '🛡️' }, // AUDITORIA_ABA_V3
     { id: 'outros', rot: 'Outros', ic: '📋' }
   ];
   var ativa = 'sobreaviso', trabalhando = false, timer = null;

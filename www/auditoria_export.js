@@ -101,4 +101,46 @@
       doc.addEventListener('click', function fechar(e) { if (!m.contains(e.target)) { m.remove(); doc.removeEventListener('click', fechar); } });
     }, 0);
   };
+  /* AUDITORIA_ABA_V3: a Trilha de Auditoria vira a aba "Auditoria" do Painel de Administração */
+  function cardAuditoria() {
+    var box = doc.querySelector('#config-modal .custom-scrollbar'), modal = doc.getElementById('audit-modal');
+    if (!box || !modal) return null;
+    var card = doc.getElementById('aud-card');
+    if (card) return card;
+    var painel = modal.firstElementChild; if (!painel) return null;
+    card = doc.createElement('div'); card.id = 'aud-card'; card.setAttribute('data-cfgtab', 'auditoria');
+    card.className = 'bg-slate-50 p-4 rounded border shrink-0 flex flex-col'; card.style.display = 'none';
+    card.innerHTML = '<h3 class="text-sm font-bold text-slate-700 mb-3 border-b pb-1">🛡️ Trilha de Auditoria</h3>';
+    var filhos = Array.prototype.slice.call(painel.children, 1); // tudo menos o cabeçalho (título + X) da janela antiga
+    filhos.forEach(function (f) { card.appendChild(f); });
+    var tab = card.querySelector('#lista-auditoria-body'); var rol = tab && tab.closest('.overflow-y-auto');
+    if (rol) { rol.style.maxHeight = '52vh'; rol.classList.add('bg-white'); }
+    box.appendChild(card);
+    if (root.lucide && root.lucide.createIcons) try { root.lucide.createIcons(); } catch (e) {}
+    return card;
+  }
+  var audCarregada = false;
+  function carregarAba() {
+    if (!cardAuditoria()) return;
+    var sel = doc.getElementById('audit-filtro-termo');
+    if (sel && sel.options.length <= 1 && typeof tecnicosDB !== 'undefined') {
+      Array.from(new Set(tecnicosDB.map(function (t) { return t.nome; }))).filter(Boolean).sort().forEach(function (n) { sel.add(new Option(n, n)); });
+    }
+    if (typeof root.limparFiltrosAuditoria === 'function') root.limparFiltrosAuditoria();
+    audCarregada = true;
+  }
+  doc.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('#cfg-abas [data-aba]');
+    if (b && b.getAttribute('data-aba') === 'auditoria') setTimeout(carregarAba, 0);
+  }, true);
+  if (typeof root.abrirConfiguracoes === 'function') {
+    var origCfg = root.abrirConfiguracoes;
+    root.abrirConfiguracoes = function () { var r = origCfg.apply(this, arguments); cardAuditoria(); audCarregada = false; return r; };
+  }
+  // quem ainda chamar abrirAuditoria() (ex.: menu do celular) cai direto na aba
+  root.abrirAuditoria = function () {
+    if (typeof root.abrirConfiguracoes === 'function') root.abrirConfiguracoes();
+    setTimeout(function () { var b = doc.querySelector('#cfg-abas [data-aba="auditoria"]'); if (b) b.click(); else carregarAba(); }, 60);
+  };
+
 })(window);
