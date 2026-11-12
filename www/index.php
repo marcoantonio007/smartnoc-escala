@@ -21,11 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             $_SESSION['nome'] = $userRow['nome_completo']; 
             $_SESSION['setores_permitidos'] = $userRow['setores_permitidos'] ?? '';
             $_SESSION['setores_gerenciaveis'] = $userRow['setores_gerenciaveis'] ?? '';
-            session_write_close(); header("Location: index.php"); exit;
+            session_write_close(); header("Location: ./"); exit;
         } else { $msgErro = "Credenciais inválidas."; }
     }
 }
-if (isset($_GET['logout'])) { session_destroy(); header("Location: index.php"); exit; }
+if (isset($_GET['logout'])) { session_destroy(); header("Location: ./"); exit; }
 
 $logado = isset($_SESSION['usuario']); 
 $perfilLogado = $logado ? $_SESSION['perfil'] : ''; 
@@ -95,6 +95,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <script>/* URL_LIMPA_V1: a barra de endereço mostra só o domínio (sem index.php e sem ?logout, ?sair_inativo...) */ (function () { try { var p = location.pathname.replace(/index\.php$/i, ""); if (p !== location.pathname || location.search) history.replaceState(null, "", p + location.hash); } catch (e) {} })();</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão de Sobreaviso AVANTIA</title>
     <script src="https://cdn.tailwindcss.com">
@@ -3666,8 +3667,8 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
   ['click', 'keydown', 'mousemove', 'wheel', 'touchstart', 'scroll'].forEach(function (e) { document.addEventListener(e, function () { ult = Date.now(); }, { passive: true, capture: true }); });
   setInterval(function () {
     var agora = Date.now();
-    if (agora - ult > lim) { location.href = 'index.php?sair_inativo=1'; return; }
-    if (ult > ping && agora - ping > 240000) { ping = agora; fetch('api_escala.php?action=sessao_ping', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (!j.sucesso) location.href = 'index.php?sair_inativo=1'; }).catch(function () {}); }
+    if (agora - ult > lim) { location.href = './?sair_inativo=1'; return; }
+    if (ult > ping && agora - ping > 240000) { ping = agora; fetch('api_escala.php?action=sessao_ping', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { if (!j.sucesso) location.href = './?sair_inativo=1'; }).catch(function () {}); }
   }, 20000);
 })();
 </script>
