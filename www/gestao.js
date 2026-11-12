@@ -887,7 +887,6 @@
     { id: 'email', rot: 'E-mail', ic: '✉️' },
     { id: 'relatorios', rot: 'Relatórios', ic: '📊' },
     { id: 'feriados', rot: 'Feriados', ic: '📅' },
-    { id: 'acessos', rot: 'Acessos', ic: '🔑' },
     { id: 'colab', rot: 'Colaboradores', ic: '👥' },
     { id: 'whatsapp', rot: 'WhatsApp', ic: '💬' },
     { id: 'auditoria', rot: 'Auditoria', ic: '🛡️' }, // AUDITORIA_ABA_V3
@@ -903,7 +902,7 @@
     if (t.indexOf('periodos de sobreaviso') >= 0) return 'sobreaviso';
     if (t.indexOf('regras de calculo') >= 0 || t.indexOf('evolution') >= 0 || t.indexOf('logo') >= 0) return 'geral';
     if (t.indexOf('feriado') >= 0) return 'feriados';
-    if (t.indexOf('contas de acesso') >= 0 || t.indexOf('login') >= 0) return 'acessos';
+    if (t.indexOf('contas de acesso') >= 0 || t.indexOf('login') >= 0) return 'colab'; // COLAB_ACESSO_V1: acessos agora ficam na aba Colaboradores
     if (t.indexOf('colaboradores') >= 0) return 'colab';
     if (t.indexOf('whatsapp') >= 0 || t.indexOf('grupos') >= 0 || t.indexOf('fila') >= 0) return 'whatsapp';
     return 'outros';
