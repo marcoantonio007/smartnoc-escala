@@ -2459,6 +2459,19 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
                 usuario_logado: currentLogin
             }; 
             
+            // FDS_VIRADA_V1: sobreaviso na sexta dia 12, 13 ou 14 -> marca também sábado e domingo (completa a virada da folha)
+            const fdsExtra = [];
+            if (status && status.startsWith('plantao') && status !== 'plantao_pontual') {
+                const [fa, fm, fd] = dataStr.split('-').map(Number);
+                const dSex = new Date(fa, fm - 1, fd);
+                if (dSex.getDay() === 5 && fd >= 12 && fd <= 14) {
+                    [1, 2].forEach(k => {
+                        const d = new Date(fa, fm - 1, fd + k);
+                        const ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        if (!(plantaoMensalDados[nome] && plantaoMensalDados[nome][ds])) fdsExtra.push(ds); // não mexe em dia que já tem marcação (plantão ou ausência)
+                    });
+                }
+            }
             // MARCACAO_RAPIDA_V1: pinta a célula na hora e grava em segundo plano (se o servidor recusar, desfaz)
             document.getElementById('cell-context-menu').classList.add('hidden'); 
             targetCellData = null; 
@@ -2466,10 +2479,12 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
             const anterior = plantaoMensalDados[nome][dataStr];
             if (status) plantaoMensalDados[nome][dataStr] = { status, anexo: (cellObj && typeof cellObj === 'object') ? cellObj.anexo : null, fracoes: [] };
             else delete plantaoMensalDados[nome][dataStr];
+            fdsExtra.forEach(ds => { plantaoMensalDados[nome][ds] = { status, anexo: null, fracoes: [] }; }); // FDS_VIRADA_V1
             try { renderAll(); } catch (e) {}
             const desfazer = () => {
                 if (!plantaoMensalDados[nome]) plantaoMensalDados[nome] = {};
                 if (anterior === undefined) delete plantaoMensalDados[nome][dataStr]; else plantaoMensalDados[nome][dataStr] = anterior;
+                fdsExtra.forEach(ds => { delete plantaoMensalDados[nome][ds]; }); // FDS_VIRADA_V1
                 try { renderAll(); } catch (e) {}
             };
             try { 
@@ -2479,7 +2494,20 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
                     desfazer();
                     alert(result.erro); 
                 } else { 
-                    recarregarDadosBanco().then(() => { if (status) avisarSobreposicaoPlantao(nome, dataStr); }); // horários e avisos chegam logo depois
+                    (async () => { // FDS_VIRADA_V1: grava sábado e domingo depois da sexta
+                        const ok = [], falhou = [];
+                        for (const ds of fdsExtra) {
+                            try {
+                                const r = await fetch('api_escala.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, data: ds, status, usuario_logado: currentLogin }) });
+                                const j = await r.json();
+                                (j.sucesso || !j.erro ? ok : falhou).push(ds.split('-').reverse().slice(0, 2).join('/') + (j.erro ? ' (' + j.erro + ')' : ''));
+                            } catch (e) { falhou.push(ds.split('-').reverse().slice(0, 2).join('/')); }
+                        }
+                        await recarregarDadosBanco();
+                        if (status) avisarSobreposicaoPlantao(nome, dataStr);
+                        if (ok.length && typeof showToast === 'function') showToast('Sábado e domingo marcados automaticamente: ' + ok.join(' e '), 'success');
+                        if (falhou.length) alert('Não foi possível marcar automaticamente: ' + falhou.join(', '));
+                    })(); // horários e avisos chegam logo depois
                 } 
             } catch(e) { 
                 desfazer();
