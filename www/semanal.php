@@ -14,9 +14,9 @@
 
 <script>
     const linhasEscalaConfig = [
-        { id: 'rec_1', titulo: 'RECORRÊNCIA 1', subtitulo: 'GERAL', cor: 'bg-neutral-600', match: (t, st) => st === 'plantao_rec1' || (t.setor === 'RECORRENCIA' && st === 'plantao') }, /* SEM_SETAS_V1 */
+        { id: 'rec_1', titulo: 'RECORRÊNCIA', /* SEM_NUMERO_V1 */ subtitulo: 'GERAL', cor: 'bg-neutral-600', match: (t, st) => st === 'plantao_rec1' || (t.setor === 'RECORRENCIA' && st === 'plantao') }, /* SEM_SETAS_V1 */
         // REMOVIDO_RESERVA_V1 (linha não usada mais no sobreaviso): { id: 'rec_2', titulo: 'RECORRÊNCIA 2', subtitulo: 'GERAL - RESERVA', cor: 'bg-neutral-800', isHidden: true, isReserva: true, parentId: 'rec_1', match: (t, st) => st === 'plantao_rec2' },
-        { id: 'l_lte_tit', titulo: 'SALVADOR - LTE 1', subtitulo: 'PRINCIPAL', cor: 'bg-blue-600', match: (t, st) => t.setor === 'LTE' && (st === 'plantao' || st === 'plantao_lte_titular') },
+        { id: 'l_lte_tit', titulo: 'SALVADOR - LTE', subtitulo: 'PRINCIPAL', cor: 'bg-blue-600', match: (t, st) => t.setor === 'LTE' && (st === 'plantao' || st === 'plantao_lte_titular') },
         // REMOVIDO_RESERVA_V1 (linha não usada mais no sobreaviso): { id: 'l_lte_res', titulo: 'SALVADOR - LTE 2', subtitulo: 'RESERVA', cor: 'bg-indigo-400', isHidden: true, isReserva: true, parentId: 'l_lte_tit', match: (t, st) => t.setor === 'LTE' && st === 'plantao_reserva' },
         { id: 'l1', titulo: 'SALVADOR - COI', subtitulo: 'ELE/REF', cor: 'bg-amber-600', match: (t, st) => t.localidade === 'SALVADOR' && t.local_base === 'COI' && t.setor === 'ELE/REF' && st.startsWith('plantao') },
         { id: 'l3', titulo: 'SALVADOR - COI', subtitulo: 'VIDEOWALL', cor: 'bg-purple-600', match: (t, st) => t.setor === 'VIDEOWALL' && st.startsWith('plantao') },
