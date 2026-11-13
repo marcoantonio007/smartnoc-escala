@@ -14,9 +14,9 @@
 
 <script>
     const linhasEscalaConfig = [
-        { id: 'rec_1', titulo: 'RECORRÊNCIA 1', subtitulo: 'GERAL', cor: 'bg-neutral-600', match: (t, st) => st === 'plantao_rec1' || (t.setor === 'RECORRENCIA' && st === 'plantao'), hasChild: 'rec_2' },
+        { id: 'rec_1', titulo: 'RECORRÊNCIA 1', subtitulo: 'GERAL', cor: 'bg-neutral-600', match: (t, st) => st === 'plantao_rec1' || (t.setor === 'RECORRENCIA' && st === 'plantao') }, /* SEM_SETAS_V1 */
         // REMOVIDO_RESERVA_V1 (linha não usada mais no sobreaviso): { id: 'rec_2', titulo: 'RECORRÊNCIA 2', subtitulo: 'GERAL - RESERVA', cor: 'bg-neutral-800', isHidden: true, isReserva: true, parentId: 'rec_1', match: (t, st) => st === 'plantao_rec2' },
-        { id: 'l_lte_tit', titulo: 'SALVADOR - LTE 1', subtitulo: 'PRINCIPAL', cor: 'bg-blue-600', match: (t, st) => t.setor === 'LTE' && (st === 'plantao' || st === 'plantao_lte_titular'), hasChild: 'l_lte_res' },
+        { id: 'l_lte_tit', titulo: 'SALVADOR - LTE 1', subtitulo: 'PRINCIPAL', cor: 'bg-blue-600', match: (t, st) => t.setor === 'LTE' && (st === 'plantao' || st === 'plantao_lte_titular') },
         // REMOVIDO_RESERVA_V1 (linha não usada mais no sobreaviso): { id: 'l_lte_res', titulo: 'SALVADOR - LTE 2', subtitulo: 'RESERVA', cor: 'bg-indigo-400', isHidden: true, isReserva: true, parentId: 'l_lte_tit', match: (t, st) => t.setor === 'LTE' && st === 'plantao_reserva' },
         { id: 'l1', titulo: 'SALVADOR - COI', subtitulo: 'ELE/REF', cor: 'bg-amber-600', match: (t, st) => t.localidade === 'SALVADOR' && t.local_base === 'COI' && t.setor === 'ELE/REF' && st.startsWith('plantao') },
         { id: 'l3', titulo: 'SALVADOR - COI', subtitulo: 'VIDEOWALL', cor: 'bg-purple-600', match: (t, st) => t.setor === 'VIDEOWALL' && st.startsWith('plantao') },
@@ -75,7 +75,7 @@
         }
 
         const larguraSetor = isMobile ? 'w-[150px] min-w-[150px] max-w-[150px]' : 'w-[200px] min-w-[200px] max-w-[200px]'; const txtSetor = isMobile ? 'SETOR/LOCAL' : 'Setor / Localidade';
-        let headersHTML = `<th class="${larguraSetor} p-1 sm:p-1.5 text-left font-bold bg-blue-950 border-r border-slate-700 sticky left-0 z-40 cursor-pointer hover:bg-blue-900 transition-colors" onclick="toggleAllHiddenRows()" title="Expandir/Recolher todos os Reservas"><div class="flex items-center justify-between"><span class="text-scale-semanal-tit pl-1 truncate">${txtSetor}</span><i data-lucide="${globalExpanded ? 'chevrons-up' : 'chevrons-down'}" class="w-3.5 h-3.5 text-blue-300 shrink-0 mx-1"></i></div></th>`;
+        let headersHTML = `<th class="${larguraSetor} p-1 sm:p-1.5 text-left font-bold bg-blue-950 border-r border-slate-700 sticky left-0 z-40"><div class="flex items-center justify-between"><span class="text-scale-semanal-tit pl-1 truncate">${txtSetor}</span></div></th>`;
         
         days.forEach((d, i) => {
             const isHoje = d.toDateString() === simulatedTodayStr;
