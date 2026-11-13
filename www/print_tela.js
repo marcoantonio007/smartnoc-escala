@@ -28,12 +28,13 @@
 
   // monta, fora da tela, uma cópia "esticada" da tela atual (sem rolagem, sem botões de navegação)
   // largura do "papel": Semanal mais estreita que a tela (letras maiores no celular); Mensal precisa de espaço para os 31 dias
-  function larguraPrint(orig) { if (orig.id === 'view-mensal') { var s = orig.scrollWidth; Array.prototype.forEach.call(orig.querySelectorAll('*'), function (e) { if (e.scrollWidth > s) s = e.scrollWidth; }); return Math.max(1900, Math.min(s, 2400)); } return 1400; }
+  function larguraPrint(orig) { if (orig.id === 'view-mensal') { var s = orig.scrollWidth; Array.prototype.forEach.call(orig.querySelectorAll('*'), function (e) { if (e.scrollWidth > s) s = e.scrollWidth; }); return Math.max(2000, Math.min(s, 2500)); } return 1500; }
   function montarCopia(orig) {
     var origTodos = [orig].concat(Array.prototype.slice.call(orig.querySelectorAll('*')));
     var clone = orig.cloneNode(true);
     var cloneTodos = [clone].concat(Array.prototype.slice.call(clone.querySelectorAll('*')));
     var hTela = orig.offsetHeight || 1;
+    var ZOOM_TXT = orig.id === 'view-semanal' ? 1.25 : 1.12;
     origTodos.forEach(function (el, i) {
       var c = cloneTodos[i]; if (!c || !c.style) return;
       var cs = getComputedStyle(el);
@@ -41,6 +42,13 @@
       var container = i === 0 || (el.offsetHeight >= hTela * 0.5 && el.getElementsByTagName('*').length > 40);   // blocos grandes que seguram a tabela
       if (rola || container) { c.style.overflow = 'visible'; c.style.height = 'auto'; c.style.maxHeight = 'none'; c.style.minHeight = '0'; c.style.flex = 'none'; }
       if (cs.position === 'sticky') c.style.position = 'relative';
+      // PRINT_NITIDEZ_V1: letras 25% maiores no print (fica legível no celular mesmo depois da compressão do WhatsApp)
+      if (ZOOM_TXT > 1 && Array.prototype.some.call(el.childNodes, function (n) { return n.nodeType === 3 && n.nodeValue.trim(); })) {
+        var fs = parseFloat(cs.fontSize), lh = parseFloat(cs.lineHeight);
+        if (fs) c.style.fontSize = (fs * ZOOM_TXT).toFixed(2) + 'px';
+        if (lh && /px$/.test(cs.lineHeight)) c.style.lineHeight = (lh * ZOOM_TXT).toFixed(2) + 'px';
+        c.style.webkitFontSmoothing = 'antialiased'; c.style.textRendering = 'geometricPrecision';
+      }
     });
     cloneTodos.forEach(function (c) { if (c.removeAttribute) c.removeAttribute('id'); });
     Array.prototype.forEach.call(clone.querySelectorAll('button, input, select'), function (b) {   // setas e controles não aparecem no print
@@ -66,7 +74,7 @@
 
   function gerarBlob(caixa, comFontes) {
     var w = caixa.scrollWidth, h = caixa.scrollHeight;
-    var ratio = Math.min(3, Math.max(2, 4096 / Math.max(w, h)));      // 2x a 3x (o WhatsApp HD aceita até ~4096 px no lado maior)
+    var ratio = Math.min(3, Math.max(2.5, 4096 / Math.max(w, h)));    // 2,5x a 3x (o WhatsApp HD aceita até ~4096 px no lado maior)
     ratio = Math.min(ratio, 14000 / Math.max(w, h));                 // nunca passa do limite do navegador
     return root.htmlToImage.toBlob(caixa, { pixelRatio: ratio, backgroundColor: '#ffffff', width: w, height: h, cacheBust: true, skipFonts: !comFontes, style: { left: '0', top: '0', position: 'static' } });
   }
