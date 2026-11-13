@@ -850,7 +850,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
                 <div class="flex items-center bg-blue-900 p-0.5 rounded border border-blue-800">
                     <button id="btn-view-week" onclick="switchView('week')" class="flex items-center gap-1 px-3 py-1 text-[10px] font-bold rounded bg-blue-600 text-white"><i data-lucide="layout-grid" class="w-3 h-3"></i> Semanal</button>
                     <button id="btn-view-month" onclick="switchView('month')" class="flex items-center gap-1 px-3 py-1 text-[10px] font-bold rounded text-blue-300 hover:text-white"><i data-lucide="calendar-days" class="w-3 h-3"></i> Mensal</button>
-                    <button type="button" id="btn-save-view" onclick="salvarViewPadrao(this)" title="Salvar esta tela (Semanal/Mensal) como tela inicial" class="flex items-center px-2 py-1 ml-0.5 text-[10px] font-bold rounded text-blue-300 hover:text-white border-l border-blue-800"><i data-lucide="save" class="w-3.5 h-3.5"></i></button>
+                    <button type="button" id="btn-save-view" onclick="salvarViewPadrao(this)" title="Salvar esta tela (Semanal/Mensal) como tela inicial" class="flex items-center px-2 py-1 ml-0.5 text-[10px] font-bold rounded text-blue-300 hover:text-white border-l border-blue-800"><i data-lucide="save" class="w-3.5 h-3.5"></i></button><button type="button" id="btn-print-tela" onclick="printTela(this)" title="Print da tela (Semanal/Mensal) para colar no WhatsApp" class="flex items-center px-2 py-1 text-[10px] font-bold rounded text-blue-300 hover:text-white border-l border-blue-800"><i data-lucide="camera" class="w-3.5 h-3.5"></i></button><!-- PRINT_TELA_V1 -->
                 </div>
                 
                 <div class="w-px h-5 bg-blue-800 mx-1"></div>
@@ -872,7 +872,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
             <div class="flex items-center justify-center bg-blue-950 p-1 rounded border border-blue-800 gap-1 flex-wrap">
                 <button id="btn-view-week-mobile" onclick="switchView('week'); toggleMobileMenu();" class="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-bold rounded bg-blue-600 text-white"><i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> Semanal</button>
                 <button id="btn-view-month-mobile" onclick="switchView('month'); toggleMobileMenu();" class="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-bold rounded text-blue-300 hover:text-white"><i data-lucide="calendar-days" class="w-3.5 h-3.5"></i> Mensal</button>
-                <button type="button" onclick="salvarViewPadrao(this)" title="Salvar esta tela como tela inicial" class="flex items-center justify-center px-3 py-1.5 text-xs font-bold rounded text-blue-300 hover:text-white"><i data-lucide="save" class="w-3.5 h-3.5"></i></button>
+                <button type="button" onclick="salvarViewPadrao(this)" title="Salvar esta tela como tela inicial" class="flex items-center justify-center px-3 py-1.5 text-xs font-bold rounded text-blue-300 hover:text-white"><i data-lucide="save" class="w-3.5 h-3.5"></i></button><button type="button" onclick="toggleMobileMenu(); printTela(this)" title="Print da tela para o WhatsApp" class="flex items-center justify-center px-3 py-1.5 text-xs font-bold rounded text-blue-300 hover:text-white"><i data-lucide="camera" class="w-3.5 h-3.5"></i></button>
             </div>
             <?php if ($perfilLogado === 'admin' || $perfilLogado === 'mestre'): ?>
             <div class="grid grid-cols-2 gap-2 pt-1 border-t border-blue-800">
@@ -3653,6 +3653,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
 <script src="auditoria_export.js?v=3"></script>
 <script src="colab_acesso.js?v=2"></script>
 <script src="sobreaviso_ferramentas.js?v=2"></script>
+<script src="print_tela.js?v=1"></script>
 <script src="setores_chips.js?v=1"></script> <!-- SETORES_CHIPS_V1 -->
 <script src="dashboard_pdf.js?v=4"></script>
 <script>/* SESSAO_INATIV_V1: volta ao login quando a tela fica parada; enquanto há uso, mantém a sessão viva */
