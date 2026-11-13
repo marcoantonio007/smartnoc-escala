@@ -27,26 +27,25 @@
   function agora() { var d = new Date(); return { txt: p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()), arq: d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + '_' + p2(d.getHours()) + p2(d.getMinutes()) }; }
 
   // monta, fora da tela, uma cópia "esticada" da tela atual (sem rolagem, sem botões de navegação)
+  // largura do "papel": Semanal mais estreita que a tela (letras maiores no celular); Mensal precisa de espaço para os 31 dias
+  function larguraPrint(orig) { if (orig.id === 'view-mensal') { var s = orig.scrollWidth; Array.prototype.forEach.call(orig.querySelectorAll('*'), function (e) { if (e.scrollWidth > s) s = e.scrollWidth; }); return Math.max(1900, Math.min(s, 2400)); } return 1400; }
   function montarCopia(orig) {
-    var largura = orig.scrollWidth;
     var origTodos = [orig].concat(Array.prototype.slice.call(orig.querySelectorAll('*')));
-    origTodos.forEach(function (el) { if (el.scrollWidth > el.clientWidth + 1) largura = Math.max(largura, el.scrollWidth + (orig.offsetWidth - el.clientWidth)); });
     var clone = orig.cloneNode(true);
     var cloneTodos = [clone].concat(Array.prototype.slice.call(clone.querySelectorAll('*')));
+    var hTela = orig.offsetHeight || 1;
     origTodos.forEach(function (el, i) {
       var c = cloneTodos[i]; if (!c || !c.style) return;
       var cs = getComputedStyle(el);
-      if (/(auto|scroll|hidden)/.test(cs.overflowY + cs.overflowX) && (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1 || i === 0)) {
-        c.style.overflow = 'visible'; c.style.height = 'auto'; c.style.maxHeight = 'none'; c.style.flex = 'none';
-      }
+      var rola = /(auto|scroll|hidden)/.test(cs.overflowY + cs.overflowX) && (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1);
+      var container = i === 0 || (el.offsetHeight >= hTela * 0.5 && el.getElementsByTagName('*').length > 40);   // blocos grandes que seguram a tabela
+      if (rola || container) { c.style.overflow = 'visible'; c.style.height = 'auto'; c.style.maxHeight = 'none'; c.style.minHeight = '0'; c.style.flex = 'none'; }
       if (cs.position === 'sticky') c.style.position = 'relative';
     });
-    clone.style.height = 'auto'; clone.style.maxHeight = 'none'; clone.style.width = largura + 'px'; clone.style.flex = 'none';
     cloneTodos.forEach(function (c) { if (c.removeAttribute) c.removeAttribute('id'); });
     Array.prototype.forEach.call(clone.querySelectorAll('button, input, select'), function (b) {   // setas e controles não aparecem no print
       if (b.tagName !== 'BUTTON' || b.querySelector('.lucide-chevron-left, .lucide-chevron-right, [data-lucide="chevron-left"], [data-lucide="chevron-right"]') || /change(Month|Week)|semana/i.test(b.getAttribute('onclick') || '')) b.style.visibility = 'hidden';
     });
-
     var filtros = Array.prototype.map.call(document.querySelectorAll('#active-filters-container > *'), function (x) { return x.textContent.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
     var t = agora();
     var topo = document.createElement('div');
@@ -56,15 +55,19 @@
       '</div><div style="opacity:.75;font-weight:500;font-size:11px">Gerado em ' + t.txt + '</div>';
 
     var caixa = document.createElement('div');
-    caixa.style.cssText = 'position:fixed;left:-100000px;top:0;z-index:-1;background:#fff;width:' + largura + 'px;';
+    caixa.style.cssText = 'position:fixed;left:-100000px;top:0;z-index:-1;background:#fff;width:' + larguraPrint(orig) + 'px;';
+    clone.style.width = '100%';
     caixa.appendChild(topo); caixa.appendChild(clone);
     document.body.appendChild(caixa);
+    var sobra = clone.scrollWidth - clone.clientWidth;   // se algo não couber, alarga só o necessário
+    if (sobra > 1) caixa.style.width = (caixa.offsetWidth + sobra) + 'px';
     return { caixa: caixa, arquivo: 'escala_' + (orig.id === 'view-mensal' ? 'mensal' : 'semanal') + '_' + t.arq + '.png' };
   }
 
   function gerarBlob(caixa, comFontes) {
     var w = caixa.scrollWidth, h = caixa.scrollHeight;
-    var ratio = Math.max(1, Math.min(2, 12000 / Math.max(w, h)));   // nítido, sem passar do limite do navegador
+    var ratio = Math.min(3, Math.max(2, 4096 / Math.max(w, h)));      // 2x a 3x (o WhatsApp HD aceita até ~4096 px no lado maior)
+    ratio = Math.min(ratio, 14000 / Math.max(w, h));                 // nunca passa do limite do navegador
     return root.htmlToImage.toBlob(caixa, { pixelRatio: ratio, backgroundColor: '#ffffff', width: w, height: h, cacheBust: true, skipFonts: !comFontes, style: { left: '0', top: '0', position: 'static' } });
   }
 
