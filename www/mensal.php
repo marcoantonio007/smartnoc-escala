@@ -159,7 +159,7 @@
                     <td class="p-1 sm:p-2 bg-white border-r border-slate-300 pl-2 sm:pl-3 sticky left-0 z-10 overflow-hidden whitespace-nowrap w-[140px] sm:w-[340px] min-w-[140px] sm:min-w-[340px] max-w-[140px] sm:max-w-[340px]">
                         <div class="flex flex-col justify-center w-full pr-1 sm:pr-3">
                             <div class="text-scale-nome font-black text-slate-800 uppercase flex flex-col sm:flex-row sm:items-center justify-start sm:justify-between w-full overflow-hidden"><span class="text-left truncate w-full sm:w-auto text-ellipsis">${nome}</span><span class="text-slate-300 font-light px-2 shrink-0 hidden sm:block">|</span><span class="text-left sm:text-right shrink-0 text-[8.5px] sm:text-[10px] mt-0.5 sm:mt-0 text-slate-600 sm:text-slate-800 tracking-tight">${telContato}</span></div>
-                            <div class="text-[8px] sm:text-[9px] text-slate-500 font-semibold uppercase mt-0.5 text-left truncate w-full text-ellipsis">${funcData.local_base || ''} <span class="mx-0.5">|</span> ${funcData.localidade || ''} <span class="mx-0.5">|</span> ${funcData.setor || ''}</div>
+                            <div class="text-[8px] sm:text-[9px] text-slate-500 font-semibold uppercase mt-0.5 text-left truncate w-full text-ellipsis">${funcData.local_base || ''} <span class="mx-0.5">|</span> ${funcData.localidade || ''} <span class="mx-0.5">|</span> ${funcData.setor || ''}${(typeof setoresDo === 'function' && setoresDo(funcData).length > 1) ? ' <span class="text-indigo-600" title="Também atende">+ ' + setoresDo(funcData).slice(1).join(' + ') + '</span>' : ''}</div>
                         </div>
                     </td>`;
 

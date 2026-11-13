@@ -666,6 +666,12 @@ if ($action === 'salvar_funcionario' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             registrarAuditoria($pdo, $usuarioLogado, 'CRIAR COLABORADOR', "Cadastrou novo colaborador: $nome");
         }
         if ($emailColab !== null) escEmailSalvar($pdo, $nome, $emailColab); // EMAIL_COLAB_V1
+        if (isset($_POST['setores_extras'])) { // SETORES_EXTRAS_V1: setores que o colaborador também atende (só para filtro/visualização)
+            $pdo->exec("ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS setores_extras TEXT");
+            $princ = strtoupper(trim((string)($_POST['setor'] ?? ''))); $lst = [];
+            foreach (explode(',', (string)$_POST['setores_extras']) as $sx) { $sx = mb_strtoupper(trim($sx), 'UTF-8'); if ($sx !== '' && $sx !== $princ && !in_array($sx, $lst, true) && strlen($sx) <= 40) $lst[] = $sx; }
+            $pdo->prepare("UPDATE funcionarios SET setores_extras = NULLIF(:x, '') WHERE nome = :n")->execute(['x' => implode(', ', $lst), 'n' => $nome]);
+        }
         if ($matColab !== null) { // MATRICULA_V1
             escEmailGarantir($pdo);
             if ($matColab !== '') { $dup = $pdo->prepare("SELECT nome FROM funcionarios WHERE matricula = :m AND nome <> :n LIMIT 1"); $dup->execute(['m' => $matColab, 'n' => $nome]); if ($o = $dup->fetchColumn()) throw new Exception('A matrícula ' . $matColab . ' já está cadastrada para ' . $o . '.'); }
