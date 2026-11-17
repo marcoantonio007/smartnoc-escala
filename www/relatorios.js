@@ -116,7 +116,7 @@
       return '<div class="bg-white border rounded p-3 flex flex-wrap items-start gap-3' + (ativo ? '' : ' opacity-60') + '">' +
         '<label class="flex items-center gap-1 text-[11px] font-bold text-slate-600 cursor-pointer" title="Habilitar/desabilitar"><input type="checkbox" data-ativo="' + e.id + '"' + (ativo ? ' checked' : '') + '> Ativo</label>' +
         '<div class="flex-1 min-w-[220px]"><div class="text-xs font-black text-slate-800">' + esc(TIPOS[e.tipo] || e.tipo) + '</div>' +
-        '<div class="text-[11px] text-slate-600">Todo dia <b>' + e.dia + '</b> às <b>' + esc(e.hora) + '</b>' + (e.setores ? ' · setores: <b>' + esc(e.setores) + '</b>' : ' · todos os setores') + '</div>' +
+        '<div class="text-[11px] text-slate-600">Todo dia <b>' + e.dia + '</b>' + ((e.dia_util === false || e.dia_util === 'f') ? '' : ' <span title="Se cair em sábado, domingo ou feriado, vai no próximo dia útil">(ou o próximo dia útil)</span>') + ' às <b>' + esc(e.hora) + '</b>' + /* REL_DIA_UTIL_V1 */ (e.setores ? ' · setores: <b>' + esc(e.setores) + '</b>' : ' · todos os setores') + '</div>' +
         '<div class="text-[11px] text-slate-600 break-all">Para: ' + esc(e.destinatarios) + '</div>' + st + '</div>' +
         '<div class="flex gap-1"><button type="button" data-ed="' + e.id + '" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-[11px] px-2 py-1 rounded">Editar</button>' +
         '<button type="button" data-env="' + e.id + '" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-[11px] px-2 py-1 rounded" title="Envia agora a última competência fechada">Enviar agora</button>' +
@@ -151,16 +151,18 @@
       '<div class="md:col-span-4"><label class="' + L + '">Setores (nenhum marcado = todos)</label><div class="flex flex-wrap gap-3">' +
       (estado.setores.length ? estado.setores.map(function (s) { return '<label class="flex items-center gap-1 text-[11px] font-semibold text-slate-600"><input type="checkbox" data-set="' + esc(s) + '"' + (sel.indexOf(s) >= 0 ? ' checked' : '') + '> ' + esc(s) + '</label>'; }).join('') : '<span class="text-[11px] text-slate-400">Sem setores cadastrados.</span>') +
       '</div></div></div>' +
+      '<label class="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600"><input id="rf-diautil" type="checkbox"> Só em dia útil (se cair em sábado, domingo ou feriado, envia no próximo dia útil)</label>' +
       '<label class="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600"><input id="rf-ativo" type="checkbox"> Envio habilitado</label>' +
       '<div class="mt-2 flex gap-2"><button type="button" id="rf-salvar" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-bold text-xs">Salvar envio</button>' +
       '<button type="button" id="rf-cancelar" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded font-bold text-xs">Cancelar</button></div>';
     el('rf-tipo').value = e ? e.tipo : 'horas'; el('rf-dia').value = e ? e.dia : 15; el('rf-hora').value = e ? e.hora : '08:00';
     el('rf-dest').value = e ? e.destinatarios : ''; el('rf-ativo').checked = e ? (e.ativo === true || e.ativo === 't') : true;
+    el('rf-diautil').checked = !(e && (e.dia_util === false || e.dia_util === 'f'));
     f.classList.remove('hidden');
     el('rf-cancelar').onclick = function () { f.classList.add('hidden'); };
     el('rf-salvar').onclick = async function () {
       var set = Array.prototype.map.call(f.querySelectorAll('[data-set]:checked'), function (c) { return c.getAttribute('data-set'); }).join(', ');
-      var j = await post('rel_salvar', { id: estado.editando, tipo: el('rf-tipo').value, dia: +el('rf-dia').value, hora: el('rf-hora').value, destinatarios: el('rf-dest').value, setores: set, ativo: el('rf-ativo').checked });
+      var j = await post('rel_salvar', { id: estado.editando, tipo: el('rf-tipo').value, dia: +el('rf-dia').value, hora: el('rf-hora').value, destinatarios: el('rf-dest').value, setores: set, ativo: el('rf-ativo').checked, dia_util: el('rf-diautil').checked });
       if (!j.sucesso) return toast(j.erro, 'error');
       toast('Envio salvo.'); f.classList.add('hidden'); carregar();
     };

@@ -14,7 +14,20 @@ function relGarantir($pdo) {
     $pdo->exec("CREATE TABLE IF NOT EXISTS relatorios_envios (id SERIAL PRIMARY KEY, tipo VARCHAR(10) NOT NULL, ativo BOOLEAN NOT NULL DEFAULT TRUE,
         destinatarios TEXT NOT NULL DEFAULT '', dia SMALLINT NOT NULL DEFAULT 15, hora CHAR(5) NOT NULL DEFAULT '08:00', setores TEXT NOT NULL DEFAULT '',
         ultimo_ref VARCHAR(7), ultimo_em TIMESTAMP, ultimo_status TEXT, criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+    $pdo->exec("ALTER TABLE relatorios_envios ADD COLUMN IF NOT EXISTS dia_util BOOLEAN NOT NULL DEFAULT TRUE"); // REL_DIA_UTIL_V1
 }
+// REL_DIA_UTIL_V1: data real do envio no mês $ref (AAAA-MM). Com dia_util, se o dia cair em sábado, domingo ou feriado
+// (nacional/estadual da aba Feriados), passa para o próximo dia útil.
+function relDataEnvio($pdo, $ref, $dia, $diaUtil) {
+    $d = strtotime(sprintf('%s-%02d', $ref, min(28, max(1, (int)$dia))));
+    if (!$diaUtil) return date('Y-m-d', $d);
+    $fer = [];
+    try { $st = $pdo->prepare("SELECT to_char(data_feriado, 'YYYY-MM-DD') FROM feriados WHERE lower(tipo) IN ('nacional', 'estadual') AND data_feriado BETWEEN :a AND :b");
+          $st->execute(['a' => date('Y-m-d', $d), 'b' => date('Y-m-d', $d + 20 * 86400)]); $fer = array_flip($st->fetchAll(PDO::FETCH_COLUMN)); } catch (Throwable $t) {}
+    for ($i = 0; $i < 20; $i++) { $s = date('Y-m-d', $d); if ((int)date('N', $d) < 6 && !isset($fer[$s])) return $s; $d = strtotime($s . ' +1 day'); }
+    return date('Y-m-d', $d);
+}
+function relDiaUtilFlag($e) { return !array_key_exists('dia_util', $e) || $e['dia_util'] === true || $e['dia_util'] === 't' || $e['dia_util'] === 1 || $e['dia_util'] === '1'; }
 function relCfg($pdo) {
     $c = ['empresa' => 'AVANTIA TECNOLOGIA E ENGENHARIA S/A – CNPJ 02.543.302/0001-31', 'centro_custo' => '210300406 - OI BA - POLICIA', 'cc_horas' => '210300406', 'responsavel' => '', 'resp_horas' => '', 'objetivo_vr' => 'Horas Extras Realizadas']; // RELATORIOS_CAB_V1
     try { $q = $pdo->prepare("SELECT valor FROM configuracoes WHERE chave = 'relatorios_cfg'"); $q->execute(); $v = json_decode((string)$q->fetchColumn(), true);
@@ -330,7 +343,7 @@ function relEnviarAgendados($pdo, $agora = null) {
     $agora = $agora ?: time(); $n = 0; relGarantir($pdo);
     foreach ($pdo->query("SELECT * FROM relatorios_envios WHERE ativo ORDER BY id")->fetchAll(PDO::FETCH_ASSOC) as $env) {
         $ref = date('Y-m', $agora);
-        $quando = strtotime(sprintf('%s-%02d %s', $ref, min(28, max(1, (int)$env['dia'])), $env['hora']));
+        $quando = strtotime(relDataEnvio($pdo, $ref, $env['dia'], relDiaUtilFlag($env)) . ' ' . $env['hora']); // REL_DIA_UTIL_V1
         if ($agora < $quando || $env['ultimo_ref'] === $ref) continue;
         $comp = relCompetenciaFechadaEm($quando);
         $pdo->prepare("UPDATE relatorios_envios SET ultimo_ref = :r WHERE id = :id")->execute(['r' => $ref, 'id' => $env['id']]); // marca antes: nunca envia duas vezes
@@ -341,8 +354,8 @@ function relEnviarAgendados($pdo, $agora = null) {
     return $n;
 }
 function relMarcarSeJaPassou($pdo, $id) { // ao criar/editar: se o horário deste mês já passou, o primeiro envio fica para o mês seguinte
-    $st = $pdo->prepare("SELECT dia, hora FROM relatorios_envios WHERE id = :id"); $st->execute(['id' => $id]); $e = $st->fetch(PDO::FETCH_ASSOC); if (!$e) return;
-    $ref = date('Y-m'); if (time() >= strtotime(sprintf('%s-%02d %s', $ref, (int)$e['dia'], $e['hora'])))
+    $st = $pdo->prepare("SELECT dia, hora, dia_util FROM relatorios_envios WHERE id = :id"); $st->execute(['id' => $id]); $e = $st->fetch(PDO::FETCH_ASSOC); if (!$e) return;
+    $ref = date('Y-m'); if (time() >= strtotime(relDataEnvio($pdo, $ref, $e['dia'], relDiaUtilFlag($e)) . ' ' . $e['hora']))
         $pdo->prepare("UPDATE relatorios_envios SET ultimo_ref = :r WHERE id = :id AND (ultimo_ref IS NULL OR ultimo_ref < :r2)")->execute(['r' => $ref, 'r2' => $ref, 'id' => $id]);
 }
 
@@ -367,7 +380,8 @@ function relRotear($pdo, $action, $usuario) {
             header('Content-Length: ' . strlen($arq['bin'])); echo $arq['bin']; exit;
         }
         if ($action === 'rel_listar') {
-            $env = $pdo->query("SELECT id, tipo, ativo, destinatarios, dia, hora, setores, ultimo_ref, to_char((ultimo_em AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY HH24:MI') AS ultimo_em, ultimo_status FROM relatorios_envios ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+            relGarantir($pdo);
+            $env = $pdo->query("SELECT id, tipo, ativo, destinatarios, dia, hora, dia_util, setores, ultimo_ref, to_char((ultimo_em AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY HH24:MI') AS ultimo_em, ultimo_status FROM relatorios_envios ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
             $setores = $pdo->query("SELECT DISTINCT upper(trim(setor)) FROM funcionarios WHERE COALESCE(trim(setor), '') <> '' ORDER BY 1")->fetchAll(PDO::FETCH_COLUMN);
             $c = relCompetenciaFechadaEm(time());
             relJson(['sucesso' => true, 'envios' => $env, 'cfg' => relCfg($pdo), 'setores' => $setores, 'smtp' => smtpConfigurado(smtpConfigLer($pdo)), 'ultima_comp' => $c['mes'] . '/' . $c['ano']]);
@@ -380,8 +394,10 @@ function relRotear($pdo, $action, $usuario) {
             $dest = relEmails($in['destinatarios'] ?? ''); if (!$dest) relJson(['sucesso' => false, 'erro' => 'Informe ao menos um e-mail válido.']);
             $set = implode(', ', relSetores($in['setores'] ?? ''));
             $p = ['t' => $tipo, 'a' => !empty($in['ativo']) ? 'true' : 'false', 'd' => implode(', ', $dest), 'dia' => $dia, 'h' => $hora, 's' => $set];
+            $diaUtil = !array_key_exists('dia_util', $in) || !empty($in['dia_util']); // REL_DIA_UTIL_V1
             if (!empty($in['id'])) { $p['id'] = (int)$in['id']; $pdo->prepare("UPDATE relatorios_envios SET tipo = :t, ativo = :a, destinatarios = :d, dia = :dia, hora = :h, setores = :s WHERE id = :id")->execute($p); $id = (int)$in['id']; }
             else { $st = $pdo->prepare("INSERT INTO relatorios_envios (tipo, ativo, destinatarios, dia, hora, setores) VALUES (:t, :a, :d, :dia, :h, :s) RETURNING id"); $st->execute($p); $id = (int)$st->fetchColumn(); }
+            relGarantir($pdo); $pdo->prepare("UPDATE relatorios_envios SET dia_util = :u WHERE id = :id")->execute(['u' => $diaUtil ? 'true' : 'false', 'id' => $id]);
             relMarcarSeJaPassou($pdo, $id);
             $aud((empty($in['id']) ? 'Criou' : 'Alterou') . ' o envio automático #' . $id . ' (' . REL_TIPOS[$tipo] . ', dia ' . $dia . ' às ' . $hora . ', para ' . implode(', ', $dest) . ')');
             relJson(['sucesso' => true, 'id' => $id]);

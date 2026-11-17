@@ -3677,7 +3677,7 @@ $jsonFeriadosDB = json_encode($feriadosIniciais ?: []);
 })();
 </script>
 <script src="gestao.js?v=dpdf1"></script>
-<script src="relatorios.js?v=nome1"></script>
+<script src="relatorios.js?v=diautil1"></script>
 <script src="auditoria_export.js?v=3"></script>
 <script src="colab_acesso.js?v=2"></script>
 <script src="sobreaviso_ferramentas.js?v=2"></script>
